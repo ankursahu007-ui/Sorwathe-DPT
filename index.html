@@ -456,17 +456,27 @@ function saveRecords(rs) {
 ═══════════════════════════════════════════════ */
 function SorwatheLogo({ size = 36 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="19.5" fill="#154010" stroke="#C8960A" strokeWidth="1.5"/>
-      <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(200,150,10,0.3)" strokeWidth="0.8"/>
-      <line x1="20" y1="32" x2="20" y2="14" stroke="#C8960A" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="20" y1="24" x2="13" y2="19" stroke="#C8960A" strokeWidth="1" strokeLinecap="round"/>
-      <line x1="20" y1="20" x2="27" y2="15" stroke="#C8960A" strokeWidth="1" strokeLinecap="round"/>
-      <ellipse cx="20" cy="11" rx="3.5" ry="5" fill="#4a9c3a" transform="rotate(-5 20 11)"/>
-      <ellipse cx="10.5" cy="17" rx="3" ry="4.5" fill="#3d8530" transform="rotate(40 10.5 17)"/>
-      <ellipse cx="29" cy="12.5" rx="3" ry="4.5" fill="#4a9c3a" transform="rotate(-40 29 12.5)"/>
-      <ellipse cx="20" cy="8" rx="2" ry="3" fill="#5cb548"/>
-      <text x="20" y="36" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="#C8960A" fontFamily="serif" letterSpacing="1">SW</text>
+    <svg width={size} height={size} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <path id="sw-top-arc" d="M 16,100 A 84,84 0 0,1 184,100"/>
+        <path id="sw-bot-arc" d="M 32,130 A 68,68 0 0,0 168,130"/>
+      </defs>
+      <circle cx="100" cy="100" r="99" fill="#2a6b18"/>
+      <circle cx="100" cy="100" r="93" fill="#F2B200"/>
+      <circle cx="100" cy="100" r="88" fill="none" stroke="#2a6b18" strokeWidth="2"/>
+      <text fill="#2a6b18" fontSize="11" fontWeight="bold" fontFamily="Arial,sans-serif" letterSpacing="0.5">
+        <textPath href="#sw-top-arc" startOffset="50%" textAnchor="middle">USINE A THE CYOHOHA · RUKERI RWANDA</textPath>
+      </text>
+      <text fill="#2a6b18" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif" letterSpacing="2">
+        <textPath href="#sw-bot-arc" startOffset="50%" textAnchor="middle">SORWATHE LTD.</textPath>
+      </text>
+      <line x1="100" y1="150" x2="100" y2="68" stroke="#2a6b18" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="100" y1="118" x2="72" y2="100" stroke="#2a6b18" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="100" y1="110" x2="128" y2="92" stroke="#2a6b18" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M100,118 C88,110 72,100 58,82 C74,98 90,112 100,118Z" fill="#2a6b18"/>
+      <path d="M100,110 C112,102 128,90 142,74 C126,90 110,106 100,110Z" fill="#2a6b18"/>
+      <path d="M100,130 C108,122 120,114 128,104 C116,115 104,124 100,130Z" fill="#2a6b18"/>
+      <path d="M96,72 C94,64 96,54 100,50 C104,54 106,64 104,72 C102,76 98,76 96,72Z" fill="#2a6b18"/>
     </svg>
   );
 }
