@@ -1296,7 +1296,6 @@ function App() {
               </div>
               <BarChart records={records}
                 getValue={r => pct(r.totalMadeTea, r.totalGreenLeaf)}
-                thresholdLine={22}
                 unit="%" decimals={1}
                 yMin={14} yStep={1}/>
             </div>
@@ -1311,7 +1310,6 @@ function App() {
                 getValue={r => div(r.totalMadeTea, r.totalFirewood)}
                 barColor="#C8960A"
                 unit=" kg/st" decimals={0}
-                thresholdLine={300}
                 yStep={50}/>
             </div>
           </div>
