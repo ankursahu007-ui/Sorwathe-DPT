@@ -1,0 +1,48 @@
+{
+  "name": "sorwathe-dpt",
+  "version": "1.0.0",
+  "description": "Sorwathe Daily Production Tracker — Desktop App",
+  "main": "electron-main.js",
+  "scripts": {
+    "desktop": "electron .",
+    "build-win": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.sorwathe.dpt",
+    "productName": "Sorwathe DPT",
+    "copyright": "Sorwathe Ltd",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.svg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sorwathe DPT"
+    },
+    "files": [
+      "index.html",
+      "electron-main.js",
+      "manifest.json",
+      "sw.js",
+      "icon.svg",
+      "server.js"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.0.0"
+  }
+}
