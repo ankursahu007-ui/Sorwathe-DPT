@@ -902,11 +902,16 @@ function QABox({ records }) {
           if (v===null) return `No firewood data for ${mLbl}.`;
           return `Firewood Ratio in ${mLbl}: ${v.toFixed(0)} kg/st (${fwRecs.length} days)`;
         }
-        // All other metrics — arithmetic average per day is meaningful (kg/day)
+        // kg-based metrics (mt/gl/ctc/otd/gt/…): default to total for the month.
+        // Only return per-day average if user explicitly said "average" / "avg".
         const xs = mrs.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
         if (!xs.length) return `No ${mn(metric)} data for ${mLbl}.`;
-        const avg = xs.reduce((s,x)=>s+x.v,0)/xs.length;
-        return `Avg ${mn(metric)} per day in ${mLbl}: ${fv(avg,metric)} (${xs.length} production days)`;
+        if (isAvg) {
+          const avg = xs.reduce((s,x)=>s+x.v,0)/xs.length;
+          return `Avg ${mn(metric)} per day in ${mLbl}: ${fv(avg,metric)} (${xs.length} production days)`;
+        }
+        const tot = xs.reduce((s,x)=>s+x.v,0);
+        return `Total ${mn(metric)} in ${mLbl}: ${fv(tot,metric)} (${xs.length} days)`;
       }
       // ── Month summary (no metric specified) ──
       const glTot  = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
