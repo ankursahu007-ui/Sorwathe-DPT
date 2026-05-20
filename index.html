@@ -563,6 +563,11 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
   const statusColors = { green:'#1d5518', amber:'#c97a10', red:'#b83228' };
   const getCol = val => val <= 0 ? '#ddd6c8' : (barColor || statusColors[kpiStatus(val)] || '#bbb');
 
+  // 30-day average of non-zero values in current window
+  const avgVal = nonZero.length > 0
+    ? nonZero.reduce((s, d) => s + d.val, 0) / nonZero.length
+    : null;
+
   // Show every date label
   const nth = 1;
 
@@ -614,7 +619,7 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
               );
             })}
 
-            {/* ── Threshold line ── */}
+            {/* ── Target line ── */}
             {thresholdLine != null && thresholdLine >= yMin && thresholdLine <= yMax && (
               <>
                 <line x1={pl} y1={vy(thresholdLine)} x2={W-pr} y2={vy(thresholdLine)}
@@ -622,6 +627,23 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
                 <text x={W-pr+4} y={vy(thresholdLine)+4}
                   fontSize="12" fill="#C8960A" opacity="0.9" fontFamily="DM Mono,monospace">
                   {thresholdLine}{unit}
+                </text>
+              </>
+            )}
+
+            {/* ── 30-day average line ── */}
+            {avgVal != null && avgVal >= yMin && avgVal <= yMax && (
+              <>
+                <line x1={pl} y1={vy(avgVal)} x2={W-pr} y2={vy(avgVal)}
+                  stroke="#5B9BD5" strokeWidth="1.5" strokeDasharray="3,3" opacity="0.85"/>
+                <text x={W-pr+4} y={vy(avgVal)+4}
+                  fontSize="12" fill="#5B9BD5" opacity="0.95" fontFamily="DM Mono,monospace">
+                  {avgVal.toFixed(decimals)}{unit}
+                </text>
+                <text x={W-pr+4} y={vy(avgVal)-7}
+                  fontSize="9" fill="#5B9BD5" opacity="0.75" fontFamily="Nunito,sans-serif"
+                  fontWeight="700" letterSpacing="0.05em">
+                  AVG
                 </text>
               </>
             )}
@@ -1289,6 +1311,7 @@ function App() {
                 getValue={r => div(r.totalMadeTea, r.totalFirewood)}
                 barColor="#C8960A"
                 unit=" kg/st" decimals={0}
+                thresholdLine={300}
                 yStep={50}/>
             </div>
           </div>
