@@ -543,8 +543,8 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
   const yRange = yMax - yMin;
 
   // ── SVG dimensions ────────────────────────────
-  const W = 420, H = 260;
-  const pl = 56, pr = 22, pt = 16, pb = 52;
+  const W = 760, H = 270;
+  const pl = 64, pr = 28, pt = 16, pb = 58;
   const cW = W - pl - pr, cH = H - pt - pb;
 
   const n = data.length;
@@ -559,8 +559,8 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
   const statusColors = { green:'#1d5518', amber:'#c97a10', red:'#b83228' };
   const getCol = val => val <= 0 ? '#ddd6c8' : (barColor || statusColors[kpiStatus(val)] || '#bbb');
 
-  // Show every nth label so x-axis isn't overcrowded (max ~8 labels)
-  const nth = Math.max(1, Math.ceil(n / 8));
+  // Show every date label
+  const nth = 1;
 
   const recCount = nonZero.length;
 
@@ -588,7 +588,7 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
         ? <div style={{ textAlign:'center', lineHeight:'200px', color:'#ccc', fontFamily:'Nunito', fontSize:13 }}>
             No data in selected range
           </div>
-        : <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:260, overflow:'visible', marginBottom:28 }}
+        : <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:270, overflow:'visible', marginBottom:36 }}
             preserveAspectRatio="xMidYMid meet" overflow="visible">
 
             {/* ── Y gridlines + tick labels ── */}
@@ -627,17 +627,22 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
                 fill={getCol(d.val)} rx="1" opacity={d.val > 0 ? 0.88 : 0.55}/>
             ))}
 
-            {/* ── X-axis date labels ── */}
+            {/* ── X-axis date labels (every day, vertical) ── */}
             {data.map((d, i) => {
-              if (i % nth !== 0) return null;
               const [, m, day] = d.date.split('-');
-              const lbl = `${parseInt(day)} ${MONTHS[+m-1]}`;
+              const dayNum = parseInt(day);
               const lx = cx(i) + barW / 2;
+              const ly = H - 2;
+              // On 1st of month show abbreviated month name, otherwise just day number
+              const isFirstOfMonth = dayNum === 1;
+              const lbl = isFirstOfMonth ? MONTHS[+m-1] : String(dayNum).padStart(2, '0');
               return (
-                <text key={i} x={lx} y={H-4} textAnchor="end" fontSize="12"
-                  fill={d.val > 0 ? '#999' : '#ccc'}
+                <text key={i} x={lx} y={ly} textAnchor="end"
+                  fontSize={isFirstOfMonth ? '12' : '11'}
+                  fontWeight={isFirstOfMonth ? '700' : '400'}
+                  fill={d.val > 0 ? (isFirstOfMonth ? '#666' : '#999') : '#ccc'}
                   fontFamily="DM Mono,monospace"
-                  transform={`rotate(-38, ${lx}, ${H-4})`}>
+                  transform={`rotate(-90, ${lx}, ${ly})`}>
                   {lbl}
                 </text>
               );
@@ -1253,7 +1258,7 @@ function App() {
           </div>
 
           {/* ── Bar Charts ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:18, marginBottom:18 }}>
             <div className="card fade-up d8" style={{ padding:'20px 22px' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
                 <h3 className="serif" style={{ fontSize:19, color:'var(--forest)' }}>Recovery %</h3>
