@@ -491,15 +491,15 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
     .map(r => ({ date: r.date, val: getValue(r) }))
     .filter(d => d.val !== null && d.val > 0);
 
-  const W = 800, H = 160;
-  const pl = 58, pr = 28, pt = 14, pb = 40;
+  const W = 420, H = 260;
+  const pl = 52, pr = 20, pt = 16, pb = 52;
   const cW = W - pl - pr, cH = H - pt - pb;
 
   const hasData = data.length > 0;
   const maxV = hasData ? Math.max(...data.map(d => d.val)) * 1.1 : 100;
   const n = data.length;
   const slotW = n > 0 ? cW / n : cW;
-  const barW = Math.max(3, Math.min(22, slotW * 0.74));
+  const barW = Math.max(4, Math.min(28, slotW * 0.74));
 
   const cx = i => pl + i * slotW + (slotW - barW) / 2;
   const bh = val => (val / maxV) * cH;
@@ -508,41 +508,41 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
   const statusColors = { green:'#1d5518', amber:'#c97a10', red:'#b83228', mist:'#ccc' };
   const getCol = val => barColor || statusColors[kpiStatus(val)] || '#ccc';
 
-  const nth = Math.max(1, Math.ceil(n / 9));
+  const nth = Math.max(1, Math.ceil(n / 7));
   const tickVals = [0, maxV / 2, maxV];
 
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, flexWrap:'wrap' }}>
-        <span style={{ fontSize:9.5, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase',
-          color:'#bbb', fontFamily:'Nunito', whiteSpace:'nowrap' }}>Date Range</span>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'nowrap' }}>
+        <span style={{ fontSize:9, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase',
+          color:'#bbb', fontFamily:'Nunito', whiteSpace:'nowrap' }}>Range</span>
         <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-          className="field" style={{ maxWidth:138, padding:'4px 9px', fontSize:12 }}/>
-        <span style={{ color:'#ccc', fontSize:11 }}>–</span>
+          className="field" style={{ maxWidth:120, padding:'3px 7px', fontSize:11 }}/>
+        <span style={{ color:'#ccc', fontSize:10 }}>–</span>
         <input type="date" value={to} onChange={e => setTo(e.target.value)}
-          className="field" style={{ maxWidth:138, padding:'4px 9px', fontSize:12 }}/>
+          className="field" style={{ maxWidth:120, padding:'3px 7px', fontSize:11 }}/>
         {(from || to) && (
           <button onClick={() => { setFrom(''); setTo(''); }}
-            style={{ fontSize:11, color:'var(--gold)', background:'none', border:'none',
-              cursor:'pointer', fontFamily:'Nunito', fontWeight:700 }}>✕ Clear</button>
+            style={{ fontSize:10, color:'var(--gold)', background:'none', border:'none',
+              cursor:'pointer', fontFamily:'Nunito', fontWeight:700 }}>✕</button>
         )}
-        <span style={{ marginLeft:'auto', fontSize:10.5, color:'#bbb', fontFamily:'Nunito' }}>
+        <span style={{ marginLeft:'auto', fontSize:10, color:'#bbb', fontFamily:'Nunito', whiteSpace:'nowrap' }}>
           {!from && !to ? 'Last 30 days' : `${data.length} records`}
         </span>
       </div>
 
       {!hasData
-        ? <div style={{ textAlign:'center', lineHeight:'120px', color:'#ccc', fontFamily:'Nunito', fontSize:13 }}>
+        ? <div style={{ textAlign:'center', lineHeight:'200px', color:'#ccc', fontFamily:'Nunito', fontSize:13 }}>
             No data in selected range
           </div>
-        : <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:160 }} preserveAspectRatio="xMidYMid meet">
+        : <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:260 }} preserveAspectRatio="xMidYMid meet">
             {tickVals.map((v, i) => {
               const ty = pt + cH - (v / maxV) * cH;
               return (
                 <g key={i}>
                   <line x1={pl} y1={ty} x2={W-pr} y2={ty}
                     stroke="#e5e0d0" strokeWidth="1" strokeDasharray={i === 0 ? '0' : '4,3'}/>
-                  <text x={pl-4} y={ty+3.5} textAnchor="end" fontSize="9" fill="#bbb"
+                  <text x={pl-6} y={ty+4} textAnchor="end" fontSize="13" fill="#888"
                     fontFamily="DM Mono,monospace">
                     {v.toFixed(decimals)}
                   </text>
@@ -554,8 +554,8 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
                 <line x1={pl} y1={pt+cH-(thresholdLine/maxV)*cH}
                   x2={W-pr}  y2={pt+cH-(thresholdLine/maxV)*cH}
                   stroke="#C8960A" strokeWidth="1.5" strokeDasharray="5,4" opacity="0.7"/>
-                <text x={W-pr+4} y={pt+cH-(thresholdLine/maxV)*cH+3.5}
-                  fontSize="9" fill="#C8960A" opacity="0.85" fontFamily="DM Mono,monospace">
+                <text x={W-pr+4} y={pt+cH-(thresholdLine/maxV)*cH+4}
+                  fontSize="12" fill="#C8960A" opacity="0.85" fontFamily="DM Mono,monospace">
                   {thresholdLine}{unit}
                 </text>
               </>
@@ -571,9 +571,9 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
               const lbl = `${parseInt(day)} ${MONTHS[+m-1]}`;
               const lx = cx(i) + barW / 2;
               return (
-                <text key={i} x={lx} y={H-5} textAnchor="end" fontSize="8.5" fill="#aaa"
+                <text key={i} x={lx} y={H-4} textAnchor="end" fontSize="12" fill="#aaa"
                   fontFamily="DM Mono,monospace"
-                  transform={`rotate(-38, ${lx}, ${H-5})`}>
+                  transform={`rotate(-38, ${lx}, ${H-4})`}>
                   {lbl}
                 </text>
               );
@@ -1206,7 +1206,7 @@ function App() {
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
                 <h3 className="serif" style={{ fontSize:19, color:'var(--forest)' }}>Firewood Ratio</h3>
                 <span className="mono bg-sky" style={{ fontSize:10, padding:'3px 9px', borderRadius:99, fontWeight:600 }}>
-                  kg made tea / stere
+                  kg / stere
                 </span>
               </div>
               <BarChart records={records}
