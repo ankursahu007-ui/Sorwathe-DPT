@@ -45,7 +45,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: auto; }
 
     body {
       background: var(--cream);
@@ -1174,7 +1174,7 @@ function QABox({ records }) {
       </div>
 
       {/* Chat bubbles */}
-      <div ref={chatBoxRef} style={{ maxHeight:220, overflowY:'auto', marginBottom:12,
+      <div ref={chatBoxRef} style={{ height:220, overflowY:'auto', marginBottom:12,
         background:'var(--cream-dark)', borderRadius:10, padding:'10px 12px',
         display:'flex', flexDirection:'column', gap:8 }}>
         {chat.map((msg, i) => (
