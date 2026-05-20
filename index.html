@@ -369,7 +369,7 @@ function xr(date, gl, ctc, otd, gt, tmt, fw, stea) {
     id: 'x-' + date, date,
     totalGreenLeaf: gl,
     ctcGreenLeaf: 0, otdGreenLeaf: 0, gtGreenLeaf: 0,
-    ctcMadeTea: ctc, otdMadeTea: otd, gtMadeTea: gt, sTeaMadeTea: stea || 0,
+    ctcMadeTea: ctc, otdMadeTea: otd, gtMadeTea: gt, sTeaMadeTea: stea || 0, gOtdMadeTea: 0, gCtcMadeTea: 0,
     totalMadeTea: tmt,
     totalFirewood: fw || 0,
     ctcRunningHours: 0, totalRunningHours: 0,
@@ -992,7 +992,9 @@ function QABox({ records }) {
         if (m==='ctc') return recs.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
         if (m==='otd') return recs.reduce((s,r)=>s+(r.otdMadeTea||0),0);
         if (m==='gt')  return recs.reduce((s,r)=>s+(r.gtMadeTea||0),0);
-        if (m==='stea')return recs.reduce((s,r)=>s+(r.sTeaMadeTea||0),0);
+        if (m==='stea') return recs.reduce((s,r)=>s+(r.sTeaMadeTea||0),0);
+        if (m==='gotd') return recs.reduce((s,r)=>s+(r.gOtdMadeTea||0),0);
+        if (m==='gctc') return recs.reduce((s,r)=>s+(r.gCtcMadeTea||0),0);
         return          recs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
       };
 
@@ -1395,7 +1397,7 @@ function EntryForm({ onSave, onCancel }) {
   const [f, setF] = useState({
     date: today,
     ctcGreenLeaf:'', otdGreenLeaf:'', gtGreenLeaf:'',
-    ctcMadeTea:'', otdMadeTea:'', gtMadeTea:'', sTeaMadeTea:'',
+    ctcMadeTea:'', otdMadeTea:'', gtMadeTea:'', sTeaMadeTea:'', gOtdMadeTea:'', gCtcMadeTea:'',
     totalFirewood:'', ctcRunningHours:'', totalRunningHours:'',
     fileName:'',
   });
@@ -1403,7 +1405,7 @@ function EntryForm({ onSave, onCancel }) {
 
   /* Auto-computed totals */
   const totalGL = n(f.ctcGreenLeaf) + n(f.otdGreenLeaf) + n(f.gtGreenLeaf);
-  const totalMT = n(f.ctcMadeTea) + n(f.otdMadeTea) + n(f.gtMadeTea) + n(f.sTeaMadeTea);
+  const totalMT = n(f.ctcMadeTea) + n(f.otdMadeTea) + n(f.gtMadeTea) + n(f.sTeaMadeTea) + n(f.gOtdMadeTea) + n(f.gCtcMadeTea);
   const liveRec = totalGL > 0 && totalMT > 0 ? (totalMT / totalGL * 100) : null;
   const liveS   = liveRec !== null ? kpiStatus(liveRec) : null;
 
@@ -1424,6 +1426,8 @@ function EntryForm({ onSave, onCancel }) {
       otdMadeTea:       n(f.otdMadeTea),
       gtMadeTea:        n(f.gtMadeTea),
       sTeaMadeTea:      n(f.sTeaMadeTea),
+      gOtdMadeTea:      n(f.gOtdMadeTea),
+      gCtcMadeTea:      n(f.gCtcMadeTea),
       totalMadeTea:     totalMT,
       totalFirewood:    n(f.totalFirewood),
       ctcRunningHours:  n(f.ctcRunningHours),
@@ -1499,7 +1503,7 @@ function EntryForm({ onSave, onCancel }) {
               {totalGL > 0 ? fmtNum(totalGL) + ' kg' : '—'}
             </span>
             <span style={{ fontSize:11, color:'var(--bark-light)', fontFamily:'Nunito' }}>
-              (auto-sum of CTC + OTD + GT + S.TEA)
+              (auto-sum of CTC + OTD + GT + S.TEA + G.OTD + G.CTC)
             </span>
           </div>
         </Section>
@@ -1512,7 +1516,9 @@ function EntryForm({ onSave, onCancel }) {
             <F label="GT Made Tea (kg)"    name="gtMadeTea"   value={f.gtMadeTea}   onChange={ch}/>
           </div>
           <div className="grid-3f" style={{ marginTop:10 }}>
-            <F label="S.TEA Made Tea (kg)" name="sTeaMadeTea" value={f.sTeaMadeTea} onChange={ch}/>
+            <F label="S.TEA Made Tea (kg)"  name="sTeaMadeTea" value={f.sTeaMadeTea} onChange={ch}/>
+            <F label="G.OTD Made Tea (kg)"  name="gOtdMadeTea" value={f.gOtdMadeTea} onChange={ch}/>
+            <F label="G.CTC Made Tea (kg)"  name="gCtcMadeTea" value={f.gCtcMadeTea} onChange={ch}/>
           </div>
           {/* Computed total */}
           <div style={{ background:'var(--gold-pale)', border:'1.5px solid rgba(200,150,10,0.25)',
@@ -1523,7 +1529,7 @@ function EntryForm({ onSave, onCancel }) {
               {totalMT > 0 ? fmtNum(totalMT) + ' kg' : '—'}
             </span>
             <span style={{ fontSize:11, color:'var(--bark-light)', fontFamily:'Nunito' }}>
-              (auto-sum of CTC + OTD + GT + S.TEA)
+              (auto-sum of CTC + OTD + GT + S.TEA + G.OTD + G.CTC)
             </span>
           </div>
         </Section>
