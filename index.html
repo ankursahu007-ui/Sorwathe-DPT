@@ -267,6 +267,48 @@
 
     /* ── KPI hero value ── */
     .kpi-val { font-family: 'DM Mono', monospace; line-height: 1; }
+
+    /* ══════════════════════════════════════════
+       RESPONSIVE LAYOUT
+    ══════════════════════════════════════════ */
+    .dash-pad     { max-width:1160px; margin:0 auto; padding:32px 24px; }
+    .grid-kpi     { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:18px; }
+    .grid-comp    { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px; }
+    .grid-3f      { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 16px; }
+    .grid-filter  { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+    .grid-detail4 { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; padding:16px 24px; }
+    .tbl-wrap     { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+    @media (max-width: 768px) {
+      /* ── Nav ── */
+      .nav { padding:0 10px; min-height:56px; gap:4px; }
+      .nav-brand { gap:8px; }
+      .tab { padding:0 10px; font-size:12.5px; }
+      .btn-ghost { padding:6px 10px; font-size:12px; }
+
+      /* ── Dashboard ── */
+      .dash-pad { padding:14px 10px; }
+      .grid-kpi  { grid-template-columns:1fr; gap:10px; }
+      .grid-comp { grid-template-columns:1fr 1fr; gap:10px; }
+      .grid-3f   { grid-template-columns:1fr; }
+      .grid-filter  { grid-template-columns:1fr; }
+      .grid-detail4 { grid-template-columns:1fr 1fr; gap:12px; padding:12px 14px; }
+
+      /* ── Entry form ── */
+      .live-bar { padding:8px 12px; gap:10px; }
+      .collapse-body.open { max-height:3000px; }
+
+      /* ── Tables ── */
+      .dt th { padding:8px 8px; font-size:9.5px; }
+      .dt td { padding:8px 8px; font-size:12.5px; }
+    }
+
+    @media (max-width: 420px) {
+      .nav-right > div { display:none; } /* hide date on tiny screens */
+      .grid-comp    { grid-template-columns:1fr; }
+      .grid-detail4 { grid-template-columns:1fr 1fr; }
+      .dash-pad { padding:10px 8px; }
+    }
   </style>
 </head>
 <body>
@@ -1145,7 +1187,7 @@ function CompositionCard({ label, todayMT, todayTotal, mtdMT, mtdTotal, ytdMT, y
         color:'var(--bark-light)', marginBottom:10, fontFamily:'Nunito' }}>
         {label} <span style={{ color:'var(--gold)', opacity:0.7 }}>% of MT</span>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+      <div className="grid-3f" style={{ gap:6 }}>
         {cols.map(({ lbl, pct, kg }) => (
           <div key={lbl} style={{ textAlign:'center' }}>
             <div style={{ fontSize:9, fontWeight:800, color:'#bbb', letterSpacing:'0.06em',
@@ -1325,7 +1367,7 @@ function EntryForm({ onSave, onCancel }) {
         }}>← Back</button>
       </div>
 
-      <form onSubmit={submit} style={{ maxWidth:660, margin:'0 auto', padding:'36px 24px 80px' }}>
+      <form onSubmit={submit} style={{ maxWidth:660, margin:'0 auto', padding:'24px 14px 80px' }}>
         <div style={{ marginBottom:28 }}>
           <h2 className="serif" style={{ fontSize:32, color:'var(--forest)', marginBottom:4 }}>
             New Daily Record
@@ -1347,7 +1389,7 @@ function EntryForm({ onSave, onCancel }) {
 
         {/* A — Green Leaf */}
         <Section letter="A" title="Green Leaf Intake">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0 16px' }}>
+          <div className="grid-3f">
             <F label="CTC Green Leaf (kg)" name="ctcGreenLeaf" value={f.ctcGreenLeaf} onChange={ch}/>
             <F label="OTD Green Leaf (kg)" name="otdGreenLeaf" value={f.otdGreenLeaf} onChange={ch}/>
             <F label="GT Green Leaf (kg)"  name="gtGreenLeaf"  value={f.gtGreenLeaf}  onChange={ch}/>
@@ -1368,7 +1410,7 @@ function EntryForm({ onSave, onCancel }) {
 
         {/* B — Made Tea */}
         <Section letter="B" title="Made Tea">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0 16px' }}>
+          <div className="grid-3f">
             <F label="CTC Made Tea (kg)" name="ctcMadeTea" value={f.ctcMadeTea} onChange={ch}/>
             <F label="OTD Made Tea (kg)" name="otdMadeTea" value={f.otdMadeTea} onChange={ch}/>
             <F label="GT Made Tea (kg)"  name="gtMadeTea"  value={f.gtMadeTea}  onChange={ch}/>
@@ -1389,7 +1431,7 @@ function EntryForm({ onSave, onCancel }) {
 
         {/* C — Resources */}
         <Section letter="C" title="Resources">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0 16px' }}>
+          <div className="grid-3f">
             <F label="Total Firewood (steres)" name="totalFirewood"    value={f.totalFirewood}    onChange={ch}/>
             <F label="CTC Running Hours"       name="ctcRunningHours"  value={f.ctcRunningHours}  onChange={ch}/>
             <F label="Total Running Hours"     name="totalRunningHours"value={f.totalRunningHours}onChange={ch}/>
@@ -1443,9 +1485,9 @@ function HistoryView({ records }) {
   const filtered = sorted.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
 
   return (
-    <div style={{ maxWidth:1160, margin:'0 auto', padding:'36px 24px' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
-        <h2 className="serif" style={{ fontSize:30, color:'var(--forest)' }}>Historical Records</h2>
+    <div className="dash-pad">
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:24 }}>
+        <h2 className="serif" style={{ fontSize:28, color:'var(--forest)' }}>Historical Records</h2>
         <button disabled className="btn-gold" style={{ opacity:0.38, cursor:'not-allowed', fontSize:13 }}
           title="Export available in v1.1">↓ Export Excel</button>
       </div>
@@ -1475,7 +1517,7 @@ function HistoryView({ records }) {
             <div className="serif" style={{ fontSize:18 }}>No records in selected range</div>
           </div>
         : <div className="card" style={{ overflow:'hidden' }}>
-            <div style={{ overflowX:'auto' }}>
+            <div className="tbl-wrap">
               <table className="dt" style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead>
                   <tr>
@@ -1520,7 +1562,7 @@ function HistoryView({ records }) {
                         {exp && (
                           <tr>
                             <td colSpan="8" className="exp-td" style={{ padding:0 }}>
-                              <div style={{ padding:'16px 24px', display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:20 }}>
+                              <div className="grid-detail4">
                                 {[
                                   { title:'Green Leaf Breakdown',
                                     rows: [['CTC GL', r.ctcGreenLeaf,'kg'],['OTD GL',r.otdGreenLeaf,'kg'],['GT GL',r.gtGreenLeaf,'kg']] },
@@ -1655,13 +1697,13 @@ function App() {
       <Nav view={view} setView={setView} onNewEntry={() => setView('entry')}/>
 
       {view === 'dashboard' && (
-        <div style={{ maxWidth:1160, margin:'0 auto', padding:'32px 24px' }}>
+        <div className="dash-pad">
 
           {/* ── Data Q&A ── */}
           <QABox records={records}/>
 
           {/* ── Hero KPIs ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:18, marginBottom:18 }}>
+          <div className="grid-kpi">
             <div className="d1">
               <KpiCard label="Today's Recovery" value={todayK.recovery} hero
                 extra={latest ? `Latest entry: ${fmtDate(latest.date)}` : null}/>
@@ -1678,7 +1720,7 @@ function App() {
           </div>
 
           {/* ── Composition Cards ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:18 }}>
+          <div className="grid-comp">
             <div className="fade-up d4">
               <CompositionCard label="CTC"
                 todayMT={latest ? latest.ctcMadeTea : 0} todayTotal={latest ? latest.totalMadeTea : 0}
