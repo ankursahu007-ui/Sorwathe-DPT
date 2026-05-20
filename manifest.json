@@ -1,0 +1,26 @@
+{
+  "name": "Sorwathe Daily Production Tracker",
+  "short_name": "Sorwathe DPT",
+  "description": "Tea factory daily production tracking — Sorwathe Ltd, Rwanda",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fafcf5",
+  "theme_color": "#154010",
+  "orientation": "any",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
