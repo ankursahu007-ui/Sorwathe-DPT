@@ -701,7 +701,7 @@ function QABox({ records }) {
     let m;
     m = q.match(new RegExp(`(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${mp})(?:\\s+\\d{4})?`));
     if (m) { const mn=monthIdx(m[2]); if(mn) return `2026-${String(mn).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`; }
-    m = q.match(new RegExp(`(${mp})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+\\d{4})?`));
+    m = q.match(new RegExp(`(${mp})\\s+(\\d{1,2})(?!\\d)(?:st|nd|rd|th)?(?!\\s*\\d{4})`));
     if (m) { const mn=monthIdx(m[1]); if(mn) return `2026-${String(mn).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`; }
     m = q.match(/(\d{1,2})\/(\d{1,2})(?:\/\d{4})?/);
     if (m) return `2026-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;
