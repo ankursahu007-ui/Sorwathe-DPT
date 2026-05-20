@@ -718,36 +718,52 @@ function QABox({ records }) {
 
   function qMetric(q) {
     q = q.toLowerCase();
-    if (/firewood|fw\b/.test(q))              return 'fw';
-    if (/recovery|rec(?:ov)?/.test(q))        return 'rec';
-    if (/green.?leaf|\bgl\b/.test(q))         return 'gl';
-    if (/made.?tea|\bmt\b/.test(q))           return 'mt';
-    if (/\bctc\b/.test(q))                    return 'ctc';
-    if (/\botd\b/.test(q))                    return 'otd';
-    if (/\bgt\b/.test(q))                     return 'gt';
+    if (/firewood|fw\b/.test(q))                          return 'fw';
+    if (/recovery|rec(?:ov)?/.test(q))                    return 'rec';
+    if (/green.?leaf|\bgl\b/.test(q))                     return 'gl';
+    if (/made.?tea|\bmt\b/.test(q))                       return 'mt';
+    // G.OTD / G.CTC / S.TEA — check BEFORE generic green tea & ctc/otd
+    if (/g\.?otd|green.?orth(?:odox)?/.test(q))           return 'gotd';
+    if (/g\.?ctc|green.?ctc/.test(q))                     return 'gctc';
+    if (/s\.?tea|special.?tea/.test(q))                   return 'stea';
+    // Natural-language tea type aliases
+    if (/\bblack.?tea\b/.test(q))                         return 'ctc';
+    if (/\borthodox(?:.tea)?\b|\botd\b/.test(q))          return 'otd';
+    if (/\bgreen.?tea\b|\bgt\b/.test(q))                  return 'gt';
+    if (/\bctc\b/.test(q))                                return 'ctc';
     return null;
   }
 
   function gv(r, m) {
-    if (m==='rec') return pct(r.totalMadeTea, r.totalGreenLeaf);
-    if (m==='fw')  return div(r.totalMadeTea, r.totalFirewood);
-    if (m==='gl')  return r.totalGreenLeaf || null;
-    if (m==='mt')  return r.totalMadeTea   || null;
-    if (m==='ctc') return pct(r.ctcMadeTea, r.totalMadeTea);
-    if (m==='otd') return pct(r.otdMadeTea, r.totalMadeTea);
-    if (m==='gt')  return pct(r.gtMadeTea,  r.totalMadeTea);
+    if (m==='rec')  return pct(r.totalMadeTea, r.totalGreenLeaf);
+    if (m==='fw')   return div(r.totalMadeTea, r.totalFirewood);
+    if (m==='gl')   return r.totalGreenLeaf    || null;
+    if (m==='mt')   return r.totalMadeTea      || null;
+    // Tea types — return actual kg produced
+    if (m==='ctc')  return r.ctcMadeTea        || null;   // Black Tea
+    if (m==='otd')  return r.otdMadeTea        || null;   // Orthodox Tea
+    if (m==='gt')   return r.gtMadeTea         || null;   // Green Tea (= G.CTC + G.OTD)
+    if (m==='gotd') return r.gOtdMadeTea       || null;   // Green Orthodox (sub-field)
+    if (m==='gctc') return r.gCtcMadeTea       || null;   // Green CTC (sub-field)
+    if (m==='stea') return r.sTeaMadeTea       || null;   // Special Tea
     return null;
   }
 
   function fv(v, m) {
     if (v===null||v===undefined) return 'N/A';
-    if (m==='rec'||m==='ctc'||m==='otd'||m==='gt') return v.toFixed(2)+'%';
-    if (m==='fw')  return v.toFixed(0)+' kg/st';
-    if (m==='gl'||m==='mt') return fmtNum(Math.round(v))+' kg';
+    if (m==='rec')                                                          return v.toFixed(2)+'%';
+    if (m==='fw')                                                           return v.toFixed(0)+' kg/st';
+    if (['gl','mt','ctc','otd','gt','gotd','gctc','stea'].includes(m))     return fmtNum(Math.round(v))+' kg';
     return v.toFixed(2);
   }
 
-  function mn(m) { return {rec:'Recovery %',fw:'Firewood Ratio',gl:'Green Leaf',mt:'Made Tea',ctc:'CTC %',otd:'OTD %',gt:'GT %'}[m]||m; }
+  function mn(m) {
+    return {
+      rec:'Recovery %', fw:'Firewood Ratio', gl:'Green Leaf', mt:'Made Tea',
+      ctc:'CTC / Black Tea', otd:'OTD / Orthodox Tea', gt:'GT / Green Tea',
+      gotd:'G.OTD / Green Orthodox', gctc:'G.CTC / Green CTC', stea:'S.TEA / Special Tea',
+    }[m] || m;
+  }
 
   function answer(q) {
     const ql      = q.toLowerCase();
@@ -771,7 +787,7 @@ function QABox({ records }) {
       }
       const rv = pct(r.totalMadeTea, r.totalGreenLeaf);
       const fwv = div(r.totalMadeTea, r.totalFirewood);
-      return `📋 ${fd(dateStr)}\n• Green Leaf: ${fmtNum(r.totalGreenLeaf)} kg\n• Made Tea: ${fmtNum(r.totalMadeTea)} kg\n• Recovery: ${fv(rv,'rec')}\n• Firewood Ratio: ${fv(fwv,'fw')}\n• CTC: ${fv(pct(r.ctcMadeTea,r.totalMadeTea),'ctc')} | OTD: ${fv(pct(r.otdMadeTea,r.totalMadeTea),'otd')} | GT: ${fv(pct(r.gtMadeTea,r.totalMadeTea),'gt')}`;
+      return `📋 ${fd(dateStr)}\n• Green Leaf: ${fmtNum(r.totalGreenLeaf)} kg\n• Made Tea: ${fmtNum(r.totalMadeTea)} kg\n• Recovery: ${fv(rv,'rec')}\n• Firewood Ratio: ${fv(fwv,'fw')}\n• CTC (Black Tea): ${fmtNum(r.ctcMadeTea||0)} kg\n• OTD (Orthodox Tea): ${fmtNum(r.otdMadeTea||0)} kg\n• GT (Green Tea): ${fmtNum(r.gtMadeTea||0)} kg`;
     }
 
     // ── Monthly queries ───────────────────────────
@@ -780,18 +796,33 @@ function QABox({ records }) {
       const mLbl = ML[monNum-1];
       if (!mrs.length) return `No records found for ${mLbl}.`;
       if (isCount) return `${mrs.length} production days recorded in ${mLbl} 2026.`;
-      if (isTotal && (!metric || metric==='gl')) {
-        const tot = mrs.reduce((s,r)=>s+r.totalGreenLeaf,0);
-        if (metric==='gl') return `Total Green Leaf in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
+      if (isTotal && metric==='gl') {
+        const tot = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+        return `Total Green Leaf in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
       }
       if (isTotal && metric==='mt') {
-        const tot = mrs.reduce((s,r)=>s+r.totalMadeTea,0);
+        const tot = mrs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
         return `Total Made Tea in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
       }
+      if (isTotal && metric==='ctc') {
+        const tot = mrs.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
+        return `Total CTC / Black Tea in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
+      }
+      if (isTotal && metric==='otd') {
+        const tot = mrs.reduce((s,r)=>s+(r.otdMadeTea||0),0);
+        return `Total OTD / Orthodox Tea in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
+      }
+      if (isTotal && metric==='gt') {
+        const tot = mrs.reduce((s,r)=>s+(r.gtMadeTea||0),0);
+        return `Total GT / Green Tea in ${mLbl}: ${fmtNum(tot)} kg — includes G.CTC + G.OTD (${mrs.length} days)`;
+      }
       if (isTotal && !metric) {
-        const gl = mrs.reduce((s,r)=>s+r.totalGreenLeaf,0);
-        const mt = mrs.reduce((s,r)=>s+r.totalMadeTea,0);
-        return `${mLbl} totals:\n• Green Leaf: ${fmtNum(gl)} kg\n• Made Tea: ${fmtNum(mt)} kg\n• Days: ${mrs.length}`;
+        const gl  = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+        const mt  = mrs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+        const ctc = mrs.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
+        const otd = mrs.reduce((s,r)=>s+(r.otdMadeTea||0),0);
+        const gt  = mrs.reduce((s,r)=>s+(r.gtMadeTea||0),0);
+        return `${mLbl} totals (${mrs.length} days):\n• Green Leaf: ${fmtNum(gl)} kg\n• Made Tea: ${fmtNum(mt)} kg\n  – CTC (Black Tea): ${fmtNum(ctc)} kg\n  – OTD (Orthodox): ${fmtNum(otd)} kg\n  – GT (Green Tea): ${fmtNum(gt)} kg`;
       }
       if (metric) {
         const xs = mrs.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
@@ -828,7 +859,7 @@ function QABox({ records }) {
       return `Overall average ${mn(metric)}: ${fv(avg,metric)} (${vals.length} production days)`;
     }
 
-    return `I can answer questions like:\n• "Recovery on 21 March"\n• "Firewood ratio on 15 April"\n• "Average recovery in April"\n• "Best recovery day in March"\n• "Total made tea in January"\n• "What happened on 6 May?"`;
+    return `I can answer questions like:\n• "Recovery on 21 March"\n• "CTC / Black Tea on 15 April"\n• "Total Green Tea in March"\n• "Total Orthodox Tea in January"\n• "Average recovery in April"\n• "Best recovery day in March"\n• "Total made tea in January"\n• "What happened on 6 May?"\n\nTea types I understand:\n• CTC = Black Tea   • OTD = Orthodox Tea\n• GT = Green Tea (G.CTC + G.OTD)\n• G.OTD = Green Orthodox   • G.CTC = Green CTC\n• S.TEA = Special Tea`;
   }
 
   function submit() {
@@ -840,7 +871,9 @@ function QABox({ records }) {
 
   const CHIPS = [
     'Recovery on 21 March',
-    'Firewood ratio on 15 April',
+    'Black Tea on 15 April',
+    'Total Green Tea in March',
+    'Total Orthodox Tea in January',
     'Average recovery in April',
     'Best recovery day in March',
     'Total made tea in January',
