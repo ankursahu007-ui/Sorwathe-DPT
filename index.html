@@ -779,11 +779,13 @@ function QABox({ records }) {
     const dateStr = parseQDate(ql);
     const metric  = qMetric(ql);
     const monNum  = parseQMonth(ql);
-    const isAvg   = /\bavg\b|average/.test(ql);
-    const isTotal = /\btotal\b|\bsum\b/.test(ql);
-    const isBest  = /\bbest\b|\bhighest\b|\bmax/.test(ql);
-    const isLow   = /\bworst\b|\blowest\b|\bmin/.test(ql);
-    const isCount = /how many|count|days/.test(ql);
+    const isAvg       = /\bavg\b|average/.test(ql);
+    const isTotal     = /\btotal\b|\bsum\b/.test(ql);
+    const isBest      = /\bbest\b|\bhighest\b|\bmax/.test(ql);
+    const isLow       = /\bworst\b|\blowest\b|\bmin/.test(ql);
+    const isCount     = /how many|count|days/.test(ql);
+    const isYearly    = /\b2026\b|\bthis year\b|\ball year\b|\bfull year\b/.test(ql);
+    const isMonthwise = /month.?wise|by month|per month|each month|monthly breakdown|month by month/.test(ql);
 
     // ── Specific date lookup ──────────────────────
     if (dateStr) {
@@ -875,6 +877,99 @@ function QABox({ records }) {
       return `${mLbl} 2026 summary (${mrs.length} days):\n• Green Leaf: ${fmtNum(glTot)} kg\n• Made Tea: ${fmtNum(mtTot)} kg\n• Recovery: ${recV!==null?recV.toFixed(2)+'%':'N/A'}\n• Firewood Ratio: ${fwV!==null?fwV.toFixed(0)+' kg/st':'N/A'}`;
     }
 
+    // ── Year-level and month-wise queries ────────
+    // Triggered by: "2026", "this year", "month-wise", "by month",
+    // or any "total X" query that has no month name.
+    if (isYearly || isMonthwise || (isTotal && !monNum)) {
+      const yr = records; // all seed data is 2026
+
+      /* ── helper: sum a metric field across a record set ── */
+      function sumField(recs, m) {
+        if (m==='gl')  return recs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+        if (m==='ctc') return recs.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
+        if (m==='otd') return recs.reduce((s,r)=>s+(r.otdMadeTea||0),0);
+        if (m==='gt')  return recs.reduce((s,r)=>s+(r.gtMadeTea||0),0);
+        return          recs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+      }
+
+      /* ── Month-wise breakdown ── */
+      if (isMonthwise) {
+        const rows = [];
+        for (let mi=1; mi<=12; mi++) {
+          const mrs = yr.filter(r => +r.date.slice(5,7) === mi);
+          if (!mrs.length) continue;
+          if (metric === 'rec') {
+            const gl = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+            const mt = mrs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const v  = pct(mt, gl);
+            rows.push(`• ${ML[mi-1]}: ${v!==null?v.toFixed(2)+'%':'N/A'} (${mrs.length} days)`);
+          } else if (metric === 'fw') {
+            const fwR = mrs.filter(r=>(r.totalFirewood||0)>0);
+            const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+            rows.push(`• ${ML[mi-1]}: ${div(mt,fw)!==null?div(mt,fw).toFixed(0)+' kg/st':'N/A'} (${fwR.length} days)`);
+          } else {
+            const tot = sumField(mrs, metric);
+            rows.push(`• ${ML[mi-1]}: ${fmtNum(tot)} kg (${mrs.length} days)`);
+          }
+        }
+        if (!rows.length) return 'No 2026 records found.';
+        const lbl = metric ? mn(metric) : 'Made Tea';
+        /* year-end line */
+        let yrLine = '';
+        if (metric === 'rec') {
+          const gl = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+          const mt = yr.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+          yrLine = `\n────────────────\nYear: ${pct(mt,gl)!==null?pct(mt,gl).toFixed(2)+'%':'N/A'}`;
+        } else if (metric === 'fw') {
+          const fwR = yr.filter(r=>(r.totalFirewood||0)>0);
+          const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+          const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+          yrLine = `\n────────────────\nYear: ${div(mt,fw)!==null?div(mt,fw).toFixed(0)+' kg/st':'N/A'}`;
+        } else {
+          yrLine = `\n────────────────\nYear total: ${fmtNum(sumField(yr, metric))} kg`;
+        }
+        return `${lbl} by month — 2026:\n${rows.join('\n')}${yrLine}`;
+      }
+
+      /* ── Year total (single-line or full summary) ── */
+      if (metric === 'rec') {
+        const gl = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+        const mt = yr.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+        return `Recovery — 2026: ${pct(mt,gl)!==null?pct(mt,gl).toFixed(2)+'%':'N/A'} (${yr.length} days)`;
+      }
+      if (metric === 'fw') {
+        const fwR = yr.filter(r=>(r.totalFirewood||0)>0);
+        const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+        const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+        return `Firewood Ratio — 2026: ${div(mt,fw)!==null?div(mt,fw).toFixed(0)+' kg/st':'N/A'} (${fwR.length} days)`;
+      }
+      if (metric === 'gl') {
+        const tot = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+        return `Total Green Leaf — 2026: ${fmtNum(tot)} kg (${yr.length} days)`;
+      }
+      if (metric === 'ctc') {
+        const tot = yr.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
+        return `Total CTC / Black Tea — 2026: ${fmtNum(tot)} kg (${yr.length} days)`;
+      }
+      if (metric === 'otd') {
+        const tot = yr.reduce((s,r)=>s+(r.otdMadeTea||0),0);
+        return `Total OTD / Orthodox Tea — 2026: ${fmtNum(tot)} kg (${yr.length} days)`;
+      }
+      if (metric === 'gt') {
+        const tot = yr.reduce((s,r)=>s+(r.gtMadeTea||0),0);
+        return `Total GT / Green Tea — 2026: ${fmtNum(tot)} kg (${yr.length} days)`;
+      }
+      /* metric === 'mt' or no metric → full YTD summary */
+      const ytMT  = yr.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+      const ytGL  = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+      const ytCTC = yr.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
+      const ytOTD = yr.reduce((s,r)=>s+(r.otdMadeTea||0),0);
+      const ytGT  = yr.reduce((s,r)=>s+(r.gtMadeTea||0),0);
+      const ytRec = pct(ytMT, ytGL);
+      return `2026 Year-to-Date (${yr.length} production days):\n• Made Tea: ${fmtNum(ytMT)} kg\n  – CTC (Black Tea): ${fmtNum(ytCTC)} kg\n  – OTD (Orthodox): ${fmtNum(ytOTD)} kg\n  – GT (Green Tea): ${fmtNum(ytGT)} kg\n• Green Leaf: ${fmtNum(ytGL)} kg\n• Recovery: ${ytRec!==null?ytRec.toFixed(2)+'%':'N/A'}`;
+    }
+
     // ── All-time stats ────────────────────────────
     if (isBest && metric) {
       const xs=records.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
@@ -912,7 +1007,7 @@ function QABox({ records }) {
       return `Overall avg ${mn(metric)}: ${fv(avg,metric)} (${vals.length} production days)`;
     }
 
-    return `I can answer questions like:\n• "Recovery on 21 March"\n• "CTC / Black Tea on 15 April"\n• "Total Green Tea in March"\n• "Total Orthodox Tea in January"\n• "Average recovery in April"\n• "Best recovery day in March"\n• "Total made tea in January"\n• "What happened on 6 May?"\n\nTea types I understand:\n• CTC = Black Tea   • OTD = Orthodox Tea\n• GT = Green Tea (G.CTC + G.OTD)\n• G.OTD = Green Orthodox   • G.CTC = Green CTC\n• S.TEA = Special Tea`;
+    return `I can answer questions like:\n• "Total made tea 2026"\n• "Made Tea by month 2026"\n• "Recovery by month 2026"\n• "Total made tea in January"\n• "Recovery in April"\n• "Total Green Tea in March"\n• "Total Black Tea in January"\n• "Best recovery day in March"\n• "What happened on 6 May?"\n\nTea types I understand:\n• CTC = Black Tea   • OTD = Orthodox Tea\n• GT = Green Tea (G.CTC + G.OTD)\n• G.OTD = Green Orthodox   • G.CTC = Green CTC\n• S.TEA = Special Tea`;
   }
 
   function submit() {
@@ -923,14 +1018,13 @@ function QABox({ records }) {
   }
 
   const CHIPS = [
-    'Recovery on 21 March',
+    'Total made tea 2026',
+    'Made Tea by month 2026',
+    'Recovery in April',
+    'Total made tea in January',
     'Black Tea on 15 April',
     'Total Green Tea in March',
-    'Total Orthodox Tea in January',
-    'Recovery in April',
-    'Firewood ratio in March',
     'Best recovery day in March',
-    'Total made tea in January',
     'What happened on 6 May?',
   ];
 
