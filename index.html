@@ -768,21 +768,30 @@ function QABox({ records }) {
   }
 
   function qMetric(q) {
+    const all = qMetrics(q);
+    return all.length ? all[0] : null;
+  }
+
+  /* Returns ALL tea-type / metric keywords found in the query */
+  function qMetrics(q) {
     q = q.toLowerCase();
-    if (/firewood|fw\b/.test(q))                          return 'fw';
-    if (/recovery|rec(?:ov)?/.test(q))                    return 'rec';
-    if (/green.?leaf|\bgl\b|raw.?material/.test(q))       return 'gl';
-    if (/made.?tea|\bmt\b|\bcrop\b/.test(q))              return 'mt';
-    // G.OTD / G.CTC / S.TEA — check BEFORE generic green tea & ctc/otd
-    if (/g\.?otd|green.?orth(?:odox)?/.test(q))           return 'gotd';
-    if (/g\.?ctc|green.?ctc/.test(q))                     return 'gctc';
-    if (/s\.?tea|special.?tea/.test(q))                   return 'stea';
-    // Natural-language tea type aliases
-    if (/\bblack.?tea\b/.test(q))                         return 'ctc';
-    if (/\borthodox(?:.tea)?\b|\botd\b/.test(q))          return 'otd';
-    if (/\bgreen.?tea\b|\bgt\b/.test(q))                  return 'gt';
-    if (/\bctc\b/.test(q))                                return 'ctc';
-    return null;
+    const hits = [];
+    const add  = (k) => { if (!hits.includes(k)) hits.push(k); };
+    if (/firewood|\bfw\b/.test(q))                                           add('fw');
+    if (/recovery|rec(?:ov)?/.test(q))                                       add('rec');
+    if (/green.?leaf|\bgl\b|raw.?material/.test(q))                          add('gl');
+    if (/made.?tea|\bmt\b|\bcrop\b/.test(q))                                 add('mt');
+    // Specific sub-types first (before generic green/ctc/otd)
+    if (/g\.?otd|green.?orth(?:odox)?/.test(q))                              add('gotd');
+    if (/g\.?ctc|green.?ctc/.test(q))                                        add('gctc');
+    if (/s\.?tea|special.?tea/.test(q))                                      add('stea');
+    // Tea type aliases — "green" alone (without "leaf") means Green Tea
+    if (/\bblack.?tea\b/.test(q))                                            add('ctc');
+    if (/\borthodox(?:.tea)?\b|\botd\b/.test(q))                             add('otd');
+    if (/\bgreen(?:.tea)?\b|\bgt\b/.test(q) && !hits.includes('gl') &&
+        !hits.includes('gotd') && !hits.includes('gctc'))                    add('gt');
+    if (/\bctc\b/.test(q) && !hits.includes('gctc'))                         add('ctc');
+    return hits;
   }
 
   function gv(r, m) {
@@ -819,7 +828,8 @@ function QABox({ records }) {
   function answer(q) {
     const ql      = q.toLowerCase();
     const dateStr = parseQDate(ql);
-    const metric  = qMetric(ql);
+    const metrics = qMetrics(ql);          // all matched metrics (array)
+    const metric  = metrics[0] || null;    // primary metric (backward-compat)
     const monNum  = parseQMonth(ql);
     const isAvg       = /\bavg\b|average/.test(ql);
     const isTotal     = /\btotal\b|\bsum\b/.test(ql);
@@ -833,6 +843,13 @@ function QABox({ records }) {
     if (dateStr) {
       const r = records.find(r => r.date === dateStr);
       if (!r) return `No production record for ${fd(dateStr)} — it may have been a rest day.`;
+      if (metrics.length > 1) {
+        const lines = metrics.map(m => {
+          const v = gv(r, m);
+          return `• ${mn(m)}: ${v!==null ? fv(v,m) : 'N/A'}`;
+        });
+        return `📋 ${fd(dateStr)}:\n${lines.join('\n')}`;
+      }
       if (metric) {
         const v = gv(r, metric);
         if (v===null) return `${mn(metric)} data not available for ${fd(dateStr)}.`;
@@ -849,6 +866,35 @@ function QABox({ records }) {
       const mLbl = ML[monNum-1];
       if (!mrs.length) return `No records found for ${mLbl}.`;
       if (isCount) return `${mrs.length} production days recorded in ${mLbl} 2026.`;
+
+      // ── Multi-metric monthly response ──
+      if (metrics.length > 1 && !isBest && !isLow) {
+        const lines = metrics.map(m => {
+          if (m === 'rec') {
+            const glT = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+            const mtT = mrs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const v   = pct(mtT, glT);
+            return `• ${mn(m)}: ${v!==null ? v.toFixed(2)+'%' : 'N/A'}`;
+          }
+          if (m === 'fw') {
+            const fwR = mrs.filter(r=>(r.totalFirewood||0)>0);
+            const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+            const v   = div(mt, fw);
+            return `• ${mn(m)}: ${v!==null ? v.toFixed(0)+' kg/st' : 'N/A'}`;
+          }
+          const xs = mrs.map(r=>({r,v:gv(r,m)})).filter(x=>x.v!==null&&x.v>0);
+          if (!xs.length) return `• ${mn(m)}: N/A`;
+          if (isAvg) {
+            const avg = xs.reduce((s,x)=>s+x.v,0)/xs.length;
+            return `• ${mn(m)}: ${fv(avg,m)} (avg/day)`;
+          }
+          const tot = xs.reduce((s,x)=>s+x.v,0);
+          return `• ${mn(m)}: ${fv(tot,m)}`;
+        });
+        return `${mLbl} 2026 — ${mrs.length} days:\n${lines.join('\n')}`;
+      }
+
       if (isTotal && metric==='gl') {
         const tot = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
         return `Total Green Leaf in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
@@ -979,6 +1025,28 @@ function QABox({ records }) {
         return `${lbl} by month — 2026:\n${rows.join('\n')}${yrLine}`;
       }
 
+      /* ── Multi-metric year total ── */
+      if (metrics.length > 1) {
+        const lines = metrics.map(m => {
+          if (m === 'rec') {
+            const gl = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+            const mt = yr.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const v  = pct(mt, gl);
+            return `• ${mn(m)}: ${v!==null ? v.toFixed(2)+'%' : 'N/A'}`;
+          }
+          if (m === 'fw') {
+            const fwR = yr.filter(r=>(r.totalFirewood||0)>0);
+            const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+            const v   = div(mt, fw);
+            return `• ${mn(m)}: ${v!==null ? v.toFixed(0)+' kg/st' : 'N/A'}`;
+          }
+          const tot = yr.reduce((s,r)=>s+(gv(r,m)||0),0);
+          return `• ${mn(m)}: ${fmtNum(tot)} kg`;
+        });
+        return `2026 Year-to-Date (${yr.length} days):\n${lines.join('\n')}`;
+      }
+
       /* ── Year total (single-line or full summary) ── */
       if (metric === 'rec') {
         const gl = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
@@ -1068,7 +1136,7 @@ function QABox({ records }) {
     'Total made tea 2026',
     'Made Tea by month 2026',
     'Recovery in April',
-    'Total made tea in January',
+    'OTD, Green and CTC in April',
     'Black Tea on 15 April',
     'Total Green Tea in March',
     'Best recovery day in March',
