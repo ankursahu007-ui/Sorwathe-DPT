@@ -783,20 +783,24 @@ function QABox({ records }) {
     q = q.toLowerCase();
     const hits = [];
     const add  = (k) => { if (!hits.includes(k)) hits.push(k); };
+    // Non-tea metrics
     if (/firewood|\bfw\b/.test(q))                                           add('fw');
     if (/recovery|rec(?:ov)?/.test(q))                                       add('rec');
     if (/green.?leaf|\bgl\b|raw.?material/.test(q))                          add('gl');
-    if (/made.?tea|\bmt\b|\bcrop\b/.test(q))                                 add('mt');
-    // Specific sub-types first (before generic green/ctc/otd)
+    // Specific tea sub-types FIRST (most specific → least specific)
     if (/g\.?otd|green.?orth(?:odox)?/.test(q))                              add('gotd');
     if (/g\.?ctc|green.?ctc/.test(q))                                        add('gctc');
     if (/s\.?tea|special.?tea/.test(q))                                      add('stea');
-    // Tea type aliases — "green" alone (without "leaf") means Green Tea
     if (/\bblack.?tea\b/.test(q))                                            add('ctc');
     if (/\borthodox(?:.tea)?\b|\botd\b/.test(q))                             add('otd');
     if (/\bgreen(?:.tea)?\b|\bgt\b/.test(q) && !hits.includes('gl') &&
         !hits.includes('gotd') && !hits.includes('gctc'))                    add('gt');
     if (/\bctc\b/.test(q) && !hits.includes('gctc'))                         add('ctc');
+    // "made tea / mt / crop" = total made tea.
+    // Only add 'mt' when NO specific tea type was already detected —
+    // e.g. "OTD crop" means OTD made tea (otd), not total made tea (mt).
+    const hasTeaType = hits.some(k => ['ctc','otd','gt','gotd','gctc','stea'].includes(k));
+    if (/made.?tea|\bmt\b|\bcrop\b/.test(q) && !hasTeaType)                 add('mt');
     return hits;
   }
 
@@ -994,39 +998,46 @@ function QABox({ records }) {
       /* ── Month-wise breakdown ── */
       if (isMonthwise) {
         const rows = [];
+        /* helper: value of metric m for a record set (single formatted string) */
+        function mwVal(recs, m) {
+          if (m === 'rec') {
+            const gl = recs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+            const mt = recs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const v  = pct(mt, gl);
+            return v!==null ? v.toFixed(2)+'%' : 'N/A';
+          }
+          if (m === 'fw') {
+            const fwR = recs.filter(r=>(r.totalFirewood||0)>0);
+            const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+            const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+            const v   = div(mt, fw);
+            return v!==null ? v.toFixed(0)+' kg/st' : 'N/A';
+          }
+          const tot = recs.reduce((s,r)=>s+(gv(r,m)||0),0);
+          return fmtNum(tot)+' kg';
+        }
+
         for (let mi=1; mi<=12; mi++) {
           const mrs = yr.filter(r => +r.date.slice(5,7) === mi);
           if (!mrs.length) continue;
-          if (metric === 'rec') {
-            const gl = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
-            const mt = mrs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-            const v  = pct(mt, gl);
-            rows.push(`• ${ML[mi-1]}: ${v!==null?v.toFixed(2)+'%':'N/A'} (${mrs.length} days)`);
-          } else if (metric === 'fw') {
-            const fwR = mrs.filter(r=>(r.totalFirewood||0)>0);
-            const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-            const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
-            rows.push(`• ${ML[mi-1]}: ${div(mt,fw)!==null?div(mt,fw).toFixed(0)+' kg/st':'N/A'} (${fwR.length} days)`);
+          if (metrics.length > 1) {
+            const parts = metrics.map(m => `${mn(m)}: ${mwVal(mrs,m)}`);
+            rows.push(`• ${ML[mi-1]} (${mrs.length} days):\n  ${parts.join('\n  ')}`);
           } else {
-            const tot = sumField(mrs, metric);
-            rows.push(`• ${ML[mi-1]}: ${fmtNum(tot)} kg (${mrs.length} days)`);
+            rows.push(`• ${ML[mi-1]}: ${mwVal(mrs, metric||'mt')} (${mrs.length} days)`);
           }
         }
         if (!rows.length) return 'No 2026 records found.';
-        const lbl = metric ? mn(metric) : 'Made Tea';
-        /* year-end line */
+        const lbl = metrics.length > 1 ? metrics.map(mn).join(' & ') : (metric ? mn(metric) : 'Made Tea');
+        /* year-end summary */
         let yrLine = '';
-        if (metric === 'rec') {
-          const gl = yr.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
-          const mt = yr.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-          yrLine = `\n────────────────\nYear: ${pct(mt,gl)!==null?pct(mt,gl).toFixed(2)+'%':'N/A'}`;
-        } else if (metric === 'fw') {
-          const fwR = yr.filter(r=>(r.totalFirewood||0)>0);
-          const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-          const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
-          yrLine = `\n────────────────\nYear: ${div(mt,fw)!==null?div(mt,fw).toFixed(0)+' kg/st':'N/A'}`;
+        if (metrics.length > 1) {
+          const parts = metrics.map(m => `${mn(m)}: ${mwVal(yr,m)}`);
+          yrLine = `\n────────────────\nYear total:\n  ${parts.join('\n  ')}`;
+        } else if (metric === 'rec' || metric === 'fw') {
+          yrLine = `\n────────────────\nYear: ${mwVal(yr, metric)}`;
         } else {
-          yrLine = `\n────────────────\nYear total: ${fmtNum(sumField(yr, metric))} kg`;
+          yrLine = `\n────────────────\nYear total: ${mwVal(yr, metric||'mt')}`;
         }
         return `${lbl} by month — 2026:\n${rows.join('\n')}${yrLine}`;
       }
