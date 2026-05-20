@@ -682,6 +682,236 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
 }
 
 /* ═══════════════════════════════════════════════
+   DATA Q&A BOX
+═══════════════════════════════════════════════ */
+function QABox({ records }) {
+  const [input, setInput]   = useState('');
+  const [chat,  setChat]    = useState([{ role:'bot', text:'Ask me anything about your production records! Try one of the suggestions below or type your own question.' }]);
+  const endRef = React.useRef(null);
+  React.useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }); }, [chat]);
+
+  const ML = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function fd(d) { const [y,m,day]=d.split('-'); return `${parseInt(day)} ${ML[+m-1]} ${y}`; }
+
+  function parseQDate(q) {
+    q = q.toLowerCase().replace(/[,\.]/g,'');
+    const mp = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec';
+    const monthIdx = s => { const i=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].findIndex(x=>s.toLowerCase().startsWith(x)); return i>=0?i+1:null; };
+    let m;
+    m = q.match(new RegExp(`(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${mp})(?:\\s+\\d{4})?`));
+    if (m) { const mn=monthIdx(m[2]); if(mn) return `2026-${String(mn).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`; }
+    m = q.match(new RegExp(`(${mp})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+\\d{4})?`));
+    if (m) { const mn=monthIdx(m[1]); if(mn) return `2026-${String(mn).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`; }
+    m = q.match(/(\d{1,2})\/(\d{1,2})(?:\/\d{4})?/);
+    if (m) return `2026-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;
+    return null;
+  }
+
+  function parseQMonth(q) {
+    q = q.toLowerCase();
+    const names = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    const short  = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    for (let i=0;i<12;i++) { if (q.includes(names[i])||q.includes(short[i])) return i+1; }
+    return null;
+  }
+
+  function qMetric(q) {
+    q = q.toLowerCase();
+    if (/firewood|fw\b/.test(q))              return 'fw';
+    if (/recovery|rec(?:ov)?/.test(q))        return 'rec';
+    if (/green.?leaf|\bgl\b/.test(q))         return 'gl';
+    if (/made.?tea|\bmt\b/.test(q))           return 'mt';
+    if (/\bctc\b/.test(q))                    return 'ctc';
+    if (/\botd\b/.test(q))                    return 'otd';
+    if (/\bgt\b/.test(q))                     return 'gt';
+    return null;
+  }
+
+  function gv(r, m) {
+    if (m==='rec') return pct(r.totalMadeTea, r.totalGreenLeaf);
+    if (m==='fw')  return div(r.totalMadeTea, r.totalFirewood);
+    if (m==='gl')  return r.totalGreenLeaf || null;
+    if (m==='mt')  return r.totalMadeTea   || null;
+    if (m==='ctc') return pct(r.ctcMadeTea, r.totalMadeTea);
+    if (m==='otd') return pct(r.otdMadeTea, r.totalMadeTea);
+    if (m==='gt')  return pct(r.gtMadeTea,  r.totalMadeTea);
+    return null;
+  }
+
+  function fv(v, m) {
+    if (v===null||v===undefined) return 'N/A';
+    if (m==='rec'||m==='ctc'||m==='otd'||m==='gt') return v.toFixed(2)+'%';
+    if (m==='fw')  return v.toFixed(0)+' kg/st';
+    if (m==='gl'||m==='mt') return fmtNum(Math.round(v))+' kg';
+    return v.toFixed(2);
+  }
+
+  function mn(m) { return {rec:'Recovery %',fw:'Firewood Ratio',gl:'Green Leaf',mt:'Made Tea',ctc:'CTC %',otd:'OTD %',gt:'GT %'}[m]||m; }
+
+  function answer(q) {
+    const ql      = q.toLowerCase();
+    const dateStr = parseQDate(ql);
+    const metric  = qMetric(ql);
+    const monNum  = parseQMonth(ql);
+    const isAvg   = /\bavg\b|average/.test(ql);
+    const isTotal = /\btotal\b|\bsum\b/.test(ql);
+    const isBest  = /\bbest\b|\bhighest\b|\bmax/.test(ql);
+    const isLow   = /\bworst\b|\blowest\b|\bmin/.test(ql);
+    const isCount = /how many|count|days/.test(ql);
+
+    // ── Specific date lookup ──────────────────────
+    if (dateStr) {
+      const r = records.find(r => r.date === dateStr);
+      if (!r) return `No production record for ${fd(dateStr)} — it may have been a rest day.`;
+      if (metric) {
+        const v = gv(r, metric);
+        if (v===null) return `${mn(metric)} data not available for ${fd(dateStr)}.`;
+        return `${mn(metric)} on ${fd(dateStr)}: ${fv(v, metric)}`;
+      }
+      const rv = pct(r.totalMadeTea, r.totalGreenLeaf);
+      const fwv = div(r.totalMadeTea, r.totalFirewood);
+      return `📋 ${fd(dateStr)}\n• Green Leaf: ${fmtNum(r.totalGreenLeaf)} kg\n• Made Tea: ${fmtNum(r.totalMadeTea)} kg\n• Recovery: ${fv(rv,'rec')}\n• Firewood Ratio: ${fv(fwv,'fw')}\n• CTC: ${fv(pct(r.ctcMadeTea,r.totalMadeTea),'ctc')} | OTD: ${fv(pct(r.otdMadeTea,r.totalMadeTea),'otd')} | GT: ${fv(pct(r.gtMadeTea,r.totalMadeTea),'gt')}`;
+    }
+
+    // ── Monthly queries ───────────────────────────
+    if (monNum) {
+      const mrs = records.filter(r => +r.date.slice(5,7)===monNum);
+      const mLbl = ML[monNum-1];
+      if (!mrs.length) return `No records found for ${mLbl}.`;
+      if (isCount) return `${mrs.length} production days recorded in ${mLbl} 2026.`;
+      if (isTotal && (!metric || metric==='gl')) {
+        const tot = mrs.reduce((s,r)=>s+r.totalGreenLeaf,0);
+        if (metric==='gl') return `Total Green Leaf in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
+      }
+      if (isTotal && metric==='mt') {
+        const tot = mrs.reduce((s,r)=>s+r.totalMadeTea,0);
+        return `Total Made Tea in ${mLbl}: ${fmtNum(tot)} kg (${mrs.length} days)`;
+      }
+      if (isTotal && !metric) {
+        const gl = mrs.reduce((s,r)=>s+r.totalGreenLeaf,0);
+        const mt = mrs.reduce((s,r)=>s+r.totalMadeTea,0);
+        return `${mLbl} totals:\n• Green Leaf: ${fmtNum(gl)} kg\n• Made Tea: ${fmtNum(mt)} kg\n• Days: ${mrs.length}`;
+      }
+      if (metric) {
+        const xs = mrs.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
+        if (!xs.length) return `No ${mn(metric)} data for ${mLbl}.`;
+        const avg = xs.reduce((s,x)=>s+x.v,0)/xs.length;
+        if (isBest) { const b=xs.reduce((a,x)=>x.v>a.v?x:a); return `Best ${mn(metric)} in ${mLbl}: ${fv(b.v,metric)} — ${fd(b.r.date)}`; }
+        if (isLow)  { const l=xs.reduce((a,x)=>x.v<a.v?x:a); return `Lowest ${mn(metric)} in ${mLbl}: ${fv(l.v,metric)} — ${fd(l.r.date)}`; }
+        return `Average ${mn(metric)} in ${mLbl}: ${fv(avg,metric)} (${xs.length} production days)`;
+      }
+      const glAvg = mrs.reduce((s,r)=>s+r.totalGreenLeaf,0)/mrs.length;
+      const mtAvg = mrs.reduce((s,r)=>s+r.totalMadeTea,0)/mrs.length;
+      const recXs = mrs.map(r=>gv(r,'rec')).filter(v=>v!==null&&v>0);
+      const recAvg = recXs.length ? recXs.reduce((s,v)=>s+v,0)/recXs.length : null;
+      return `${mLbl} 2026 summary (${mrs.length} days):\n• Avg Green Leaf: ${fmtNum(Math.round(glAvg))} kg\n• Avg Made Tea: ${fmtNum(Math.round(mtAvg))} kg\n• Avg Recovery: ${recAvg!==null?recAvg.toFixed(2)+'%':'N/A'}`;
+    }
+
+    // ── All-time stats ────────────────────────────
+    if (isBest && metric) {
+      const xs=records.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
+      if (!xs.length) return 'No data found.';
+      const b=xs.reduce((a,x)=>x.v>a.v?x:a);
+      return `Best ever ${mn(metric)}: ${fv(b.v,metric)} — ${fd(b.r.date)}`;
+    }
+    if (isLow && metric) {
+      const xs=records.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
+      if (!xs.length) return 'No data found.';
+      const l=xs.reduce((a,x)=>x.v<a.v?x:a);
+      return `Lowest ever ${mn(metric)}: ${fv(l.v,metric)} — ${fd(l.r.date)}`;
+    }
+    if (isAvg && metric) {
+      const vals=records.map(r=>gv(r,metric)).filter(v=>v!==null&&v>0);
+      if (!vals.length) return 'No data found.';
+      const avg=vals.reduce((s,v)=>s+v,0)/vals.length;
+      return `Overall average ${mn(metric)}: ${fv(avg,metric)} (${vals.length} production days)`;
+    }
+
+    return `I can answer questions like:\n• "Recovery on 21 March"\n• "Firewood ratio on 15 April"\n• "Average recovery in April"\n• "Best recovery day in March"\n• "Total made tea in January"\n• "What happened on 6 May?"`;
+  }
+
+  function submit() {
+    const q = input.trim();
+    if (!q) return;
+    setChat(c => [...c, { role:'user', text:q }, { role:'bot', text:answer(q) }]);
+    setInput('');
+  }
+
+  const CHIPS = [
+    'Recovery on 21 March',
+    'Firewood ratio on 15 April',
+    'Average recovery in April',
+    'Best recovery day in March',
+    'Total made tea in January',
+    'What happened on 6 May?',
+  ];
+
+  return (
+    <div className="card fade-up" style={{ padding:'20px 22px', marginBottom:18 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="var(--forest)" strokeWidth="1.8" fill="none" opacity="0.7"/>
+          <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" stroke="var(--forest)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+          <circle cx="12" cy="17" r="0.8" fill="var(--forest)"/>
+        </svg>
+        <h3 className="serif" style={{ fontSize:19, color:'var(--forest)', margin:0 }}>Data Q&amp;A</h3>
+        <span style={{ fontSize:11, color:'#bbb', fontFamily:'Nunito', marginLeft:'auto' }}>Ask anything about your production records</span>
+      </div>
+
+      {/* Suggestion chips */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+        {CHIPS.map(s => (
+          <button key={s} onClick={() => setInput(s)}
+            style={{ fontSize:10, padding:'4px 10px', borderRadius:99,
+              border:'1px solid var(--gold)', background:'var(--gold-pale)',
+              color:'var(--gold)', cursor:'pointer', fontFamily:'Nunito', fontWeight:700 }}>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Chat bubbles */}
+      <div style={{ maxHeight:220, overflowY:'auto', marginBottom:12,
+        background:'var(--cream-dark)', borderRadius:10, padding:'10px 12px',
+        display:'flex', flexDirection:'column', gap:8 }}>
+        {chat.map((msg, i) => (
+          <div key={i} style={{ display:'flex', justifyContent: msg.role==='user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{
+              maxWidth:'82%', padding:'8px 13px',
+              borderRadius: msg.role==='user' ? '14px 14px 3px 14px' : '14px 14px 14px 3px',
+              background: msg.role==='user' ? 'var(--forest)' : '#fff',
+              color: msg.role==='user' ? '#f5f0e8' : 'var(--bark)',
+              fontSize:13, fontFamily:'Nunito', lineHeight:1.55,
+              boxShadow:'0 1px 4px rgba(0,0,0,0.07)',
+              whiteSpace:'pre-line',
+            }}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        <div ref={endRef}/>
+      </div>
+
+      {/* Input row */}
+      <div style={{ display:'flex', gap:8 }}>
+        <input className="field" style={{ flex:1, padding:'8px 13px', fontSize:13 }}
+          placeholder="e.g. Recovery on 21 March, or Total made tea in April…"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key==='Enter') submit(); }}/>
+        <button onClick={submit}
+          style={{ padding:'8px 18px', background:'var(--forest)', color:'#f5f0e8',
+            border:'none', borderRadius:8, cursor:'pointer', fontSize:13,
+            fontFamily:'Nunito', fontWeight:700, letterSpacing:'0.02em' }}>
+          Ask
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
    KPI CARD
 ═══════════════════════════════════════════════ */
 function KpiCard({ label, value, formatter, status: fs, hero, extra }) {
@@ -1313,6 +1543,9 @@ function App() {
                 yStep={50}/>
             </div>
           </div>
+
+          {/* ── Data Q&A ── */}
+          <QABox records={records}/>
 
           {/* ── Recent Records ── */}
           <div className="card fade-up" style={{ padding:'20px 22px', animationDelay:'0.38s' }}>
