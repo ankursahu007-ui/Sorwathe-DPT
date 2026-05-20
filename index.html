@@ -832,21 +832,22 @@ function QABox({ records }) {
           if (isBest) { const b=xs.reduce((a,x)=>x.v>a.v?x:a); return `Best ${mn(metric)} in ${mLbl}: ${fv(b.v,metric)} — ${fd(b.r.date)}`; }
           if (isLow)  { const l=xs.reduce((a,x)=>x.v<a.v?x:a); return `Lowest ${mn(metric)} in ${mLbl}: ${fv(l.v,metric)} — ${fd(l.r.date)}`; }
         }
-        // Weighted aggregation for recovery and firewood ratio
+        // Recovery = Σ Made Tea / Σ Green Leaf × 100  (volume-weighted over the period)
         if (metric === 'rec') {
           const glTot = mrs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
           const mtTot = mrs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
           const v = pct(mtTot, glTot);
           if (v===null) return `No recovery data for ${mLbl}.`;
-          return `Weighted Recovery in ${mLbl}: ${v.toFixed(2)}%\n(${mrs.length} days · GL ${fmtNum(glTot)} kg · MT ${fmtNum(mtTot)} kg)`;
+          return `Recovery in ${mLbl}: ${v.toFixed(2)}% (${mrs.length} days)`;
         }
+        // Firewood Ratio = Σ Made Tea / Σ Firewood steres  (volume-weighted over the period)
         if (metric === 'fw') {
           const fwRecs = mrs.filter(r=>(r.totalFirewood||0)>0);
           const mtTot  = fwRecs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
           const fwTot  = fwRecs.reduce((s,r)=>s+(r.totalFirewood||0),0);
           const v = div(mtTot, fwTot);
           if (v===null) return `No firewood data for ${mLbl}.`;
-          return `Weighted Firewood Ratio in ${mLbl}: ${v.toFixed(0)} kg/st\n(${fwRecs.length} days · MT ${fmtNum(mtTot)} kg ÷ ${fmtNum(fwTot)} st)`;
+          return `Firewood Ratio in ${mLbl}: ${v.toFixed(0)} kg/st (${fwRecs.length} days)`;
         }
         // All other metrics — arithmetic average per day is meaningful (kg/day)
         const xs = mrs.map(r=>({r,v:gv(r,metric)})).filter(x=>x.v!==null&&x.v>0);
@@ -860,9 +861,9 @@ function QABox({ records }) {
       const fwRecs = mrs.filter(r=>(r.totalFirewood||0)>0);
       const fwTot  = fwRecs.reduce((s,r)=>s+(r.totalFirewood||0),0);
       const fwMT   = fwRecs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-      const wtdRec = pct(mtTot, glTot);
-      const wtdFW  = div(fwMT,  fwTot);
-      return `${mLbl} 2026 summary (${mrs.length} days):\n• Green Leaf: ${fmtNum(glTot)} kg\n• Made Tea: ${fmtNum(mtTot)} kg\n• Weighted Recovery: ${wtdRec!==null?wtdRec.toFixed(2)+'%':'N/A'}\n• Weighted Firewood Ratio: ${wtdFW!==null?wtdFW.toFixed(0)+' kg/st':'N/A'}`;
+      const recV   = pct(mtTot, glTot);
+      const fwV    = div(fwMT,  fwTot);
+      return `${mLbl} 2026 summary (${mrs.length} days):\n• Green Leaf: ${fmtNum(glTot)} kg\n• Made Tea: ${fmtNum(mtTot)} kg\n• Recovery: ${recV!==null?recV.toFixed(2)+'%':'N/A'}\n• Firewood Ratio: ${fwV!==null?fwV.toFixed(0)+' kg/st':'N/A'}`;
     }
 
     // ── All-time stats ────────────────────────────
@@ -885,7 +886,7 @@ function QABox({ records }) {
         const mtTot = records.reduce((s,r)=>s+(r.totalMadeTea||0),0);
         const v = pct(mtTot, glTot);
         if (v===null) return 'No data found.';
-        return `Weighted Recovery (all ${records.length} days): ${v.toFixed(2)}%\n(GL ${fmtNum(glTot)} kg · MT ${fmtNum(mtTot)} kg)`;
+        return `Recovery (all ${records.length} days): ${v.toFixed(2)}%`;
       }
       if (metric === 'fw') {
         const fwRecs = records.filter(r=>(r.totalFirewood||0)>0);
@@ -893,7 +894,7 @@ function QABox({ records }) {
         const fwTot  = fwRecs.reduce((s,r)=>s+(r.totalFirewood||0),0);
         const v = div(mtTot, fwTot);
         if (v===null) return 'No firewood data found.';
-        return `Weighted Firewood Ratio (all records): ${v.toFixed(0)} kg/st\n(${fwRecs.length} days · MT ${fmtNum(mtTot)} kg ÷ ${fmtNum(fwTot)} st)`;
+        return `Firewood Ratio (all records): ${v.toFixed(0)} kg/st (${fwRecs.length} days)`;
       }
       // Other metrics — arithmetic mean per day
       const vals=records.map(r=>gv(r,metric)).filter(v=>v!==null&&v>0);
@@ -1556,17 +1557,17 @@ function App() {
           {/* ── Hero KPIs ── */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:18, marginBottom:18 }}>
             <div className="d1">
-              <KpiCard label="Today's Weighted Recovery" value={todayK.recovery} hero
+              <KpiCard label="Today's Recovery" value={todayK.recovery} hero
                 extra={latest ? `Latest entry: ${fmtDate(latest.date)}` : null}/>
             </div>
             <div className="d2">
-              <KpiCard label={`MTD Weighted Recovery — ${monthName} 2026`} value={mtdRec} hero
-                extra={`${mtd.length} days · ${fmtNum(mtdMT)} kg MT ÷ ${fmtNum(mtdGL)} kg GL`}/>
+              <KpiCard label={`MTD Recovery — ${monthName} 2026`} value={mtdRec} hero
+                extra={`${mtd.length} days recorded this month`}/>
             </div>
             <div className="d3">
               <KpiCard label="Firewood Ratio (Today)" value={todayK.firewoodRatio}
                 formatter={v => fmt(v, 2, ' kg/st')} status="gold" hero
-                extra="kg made tea per stere · weighted daily ratio"/>
+                extra="kg made tea per stere"/>
             </div>
           </div>
 
