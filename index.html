@@ -494,9 +494,13 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
     startDate = from || (allSorted[0] ?? today);
     endDate   = to   || today;
   } else {
-    // default: last 30 calendar days
-    endDate = today;
-    const d = new Date(today);
+    // default: 30 days ending on the last date THIS METRIC has valid data
+    const lastValid = [...records]
+      .filter(r => { const v = getValue(r); return v !== null && v !== undefined && !isNaN(v) && v > 0; })
+      .map(r => r.date)
+      .sort();
+    endDate = lastValid.length > 0 ? lastValid[lastValid.length - 1] : today;
+    const d = new Date(endDate);
     d.setDate(d.getDate() - 29);
     startDate = d.toISOString().slice(0, 10);
   }
@@ -580,7 +584,9 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
               cursor:'pointer', fontFamily:'Nunito', fontWeight:700 }}>✕</button>
         )}
         <span style={{ marginLeft:'auto', fontSize:10, color:'#bbb', fontFamily:'Nunito', whiteSpace:'nowrap' }}>
-          {!from && !to ? 'Last 30 days' : `${recCount} record${recCount !== 1 ? 's' : ''}`}
+          {!from && !to
+            ? (() => { const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const [,sm,sd]=startDate.split('-'); const [,em,ed]=endDate.split('-'); return `${parseInt(sd)} ${MONTHS[+sm-1]} – ${parseInt(ed)} ${MONTHS[+em-1]}`; })()
+            : `${recCount} record${recCount !== 1 ? 's' : ''}`}
         </span>
       </div>
 
