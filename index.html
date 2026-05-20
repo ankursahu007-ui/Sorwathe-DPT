@@ -492,7 +492,7 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
     .filter(d => d.val !== null && d.val > 0);
 
   const W = 800, H = 160;
-  const pl = 44, pr = 28, pt = 14, pb = 40;
+  const pl = 58, pr = 28, pt = 14, pb = 40;
   const cW = W - pl - pr, cH = H - pt - pb;
 
   const hasData = data.length > 0;
@@ -544,7 +544,7 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
                     stroke="#e5e0d0" strokeWidth="1" strokeDasharray={i === 0 ? '0' : '4,3'}/>
                   <text x={pl-4} y={ty+3.5} textAnchor="end" fontSize="9" fill="#bbb"
                     fontFamily="DM Mono,monospace">
-                    {v.toFixed(decimals)}{unit}
+                    {v.toFixed(decimals)}
                   </text>
                 </g>
               );
