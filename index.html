@@ -1392,19 +1392,32 @@ function Toast({ msg, onDone }) {
 /* ═══════════════════════════════════════════════
    ENTRY FORM
 ═══════════════════════════════════════════════ */
-function EntryForm({ onSave, onCancel }) {
+function EntryForm({ onSave, onCancel, initialRecord }) {
   const today = new Date().toISOString().slice(0, 10);
+  const ir = initialRecord;
+  const s2 = v => (v && v > 0) ? String(v) : '';   // number → form string
   const [f, setF] = useState({
-    date: today,
-    ctcGreenLeaf:'', otdGreenLeaf:'', gtGreenLeaf:'',
-    ctcMadeTea:'', otdMadeTea:'', gtMadeTea:'', sTeaMadeTea:'', gOtdMadeTea:'', gCtcMadeTea:'',
-    totalFirewood:'', ctcRunningHours:'', totalRunningHours:'',
-    fileName:'',
+    date:              ir ? ir.date                         : today,
+    ctcGreenLeaf:      ir ? s2(ir.ctcGreenLeaf)             : '',
+    otdGreenLeaf:      ir ? s2(ir.otdGreenLeaf)             : '',
+    gtGreenLeaf:       ir ? s2(ir.gtGreenLeaf)              : '',
+    ctcMadeTea:        ir ? s2(ir.ctcMadeTea)               : '',
+    otdMadeTea:        ir ? s2(ir.otdMadeTea)               : '',
+    gtMadeTea:         ir ? s2(ir.gtMadeTea)                : '',
+    sTeaMadeTea:       ir ? s2(ir.sTeaMadeTea)              : '',
+    gOtdMadeTea:       ir ? s2(ir.gOtdMadeTea)              : '',
+    gCtcMadeTea:       ir ? s2(ir.gCtcMadeTea)              : '',
+    totalFirewood:     ir ? s2(ir.totalFirewood)             : '',
+    ctcRunningHours:   ir ? s2(ir.ctcRunningHours)           : '',
+    totalRunningHours: ir ? s2(ir.totalRunningHours)         : '',
+    fileName:          ir ? (ir.attachedFile || '')          : '',
   });
   const [dragOver, setDragOver] = useState(false);
 
   /* Auto-computed totals */
-  const totalGL = n(f.ctcGreenLeaf) + n(f.otdGreenLeaf) + n(f.gtGreenLeaf);
+  const glBreakdown = n(f.ctcGreenLeaf) + n(f.otdGreenLeaf) + n(f.gtGreenLeaf);
+  // When editing a record that has no GL breakdown, preserve the original totalGreenLeaf
+  const totalGL = glBreakdown > 0 ? glBreakdown : (ir ? (ir.totalGreenLeaf || 0) : 0);
   const totalMT = n(f.ctcMadeTea) + n(f.otdMadeTea) + n(f.gtMadeTea) + n(f.sTeaMadeTea) + n(f.gOtdMadeTea) + n(f.gCtcMadeTea);
   const liveRec = totalGL > 0 && totalMT > 0 ? (totalMT / totalGL * 100) : null;
   const liveS   = liveRec !== null ? kpiStatus(liveRec) : null;
@@ -1470,10 +1483,10 @@ function EntryForm({ onSave, onCancel }) {
       <form onSubmit={submit} style={{ maxWidth:660, margin:'0 auto', padding:'24px 14px 80px' }}>
         <div style={{ marginBottom:28 }}>
           <h2 className="serif" style={{ fontSize:32, color:'var(--forest)', marginBottom:4 }}>
-            New Daily Record
+            {ir ? '✏️ Edit Record' : 'New Daily Record'}
           </h2>
           <p style={{ color:'var(--bark-light)', fontFamily:'Nunito', fontSize:13 }}>
-            Enter production inputs — totals and KPIs are computed automatically.
+            {ir ? `Editing ${ir.date} — update any fields below, then save.` : 'Enter production inputs — totals and KPIs are computed automatically.'}
           </p>
         </div>
 
@@ -1484,7 +1497,8 @@ function EntryForm({ onSave, onCancel }) {
             Production Date
           </span>
           <input type="date" name="date" value={f.date} onChange={ch}
-            className="field" style={{ maxWidth:190 }}/>
+            className="field" style={{ maxWidth:190 }} readOnly={!!ir}/>
+          {ir && <span style={{ fontSize:11, color:'var(--amber)', fontFamily:'Nunito' }}>Date locked when editing</span>}
         </div>
 
         {/* A — Green Leaf */}
@@ -1581,7 +1595,7 @@ function EntryForm({ onSave, onCancel }) {
 /* ═══════════════════════════════════════════════
    HISTORY VIEW
 ═══════════════════════════════════════════════ */
-function HistoryView({ records }) {
+function HistoryView({ records, onEdit }) {
   const [from, setFrom] = useState('');
   const [to,   setTo]   = useState('');
   const [expId, setExpId] = useState(null);
@@ -1667,12 +1681,24 @@ function HistoryView({ records }) {
                         {exp && (
                           <tr>
                             <td colSpan="8" className="exp-td" style={{ padding:0 }}>
-                              <div className="grid-detail4">
+                              <div style={{ padding:'10px 20px 4px', borderBottom:'1px solid var(--cream-dark)', display:'flex', alignItems:'center', gap:10 }}>
+                            <button onClick={() => onEdit(r)}
+                              style={{ fontSize:12, padding:'5px 14px', borderRadius:7,
+                                background:'var(--forest)', color:'#fff', border:'none',
+                                cursor:'pointer', fontFamily:'Nunito', fontWeight:700 }}>
+                              ✏️ Edit this record
+                            </button>
+                            <span style={{ fontSize:11, color:'#bbb', fontFamily:'Nunito' }}>
+                              Update S.TEA / G.OTD / G.CTC or any other field
+                            </span>
+                          </div>
+                          <div className="grid-detail4">
                                 {[
                                   { title:'Green Leaf Breakdown',
                                     rows: [['CTC GL', r.ctcGreenLeaf,'kg'],['OTD GL',r.otdGreenLeaf,'kg'],['GT GL',r.gtGreenLeaf,'kg']] },
                                   { title:'Made Tea Breakdown',
-                                    rows: [['CTC MT',r.ctcMadeTea,'kg'],['OTD MT',r.otdMadeTea,'kg'],['GT MT',r.gtMadeTea,'kg']] },
+                                    rows: [['CTC MT',r.ctcMadeTea,'kg'],['OTD MT',r.otdMadeTea,'kg'],['GT MT',r.gtMadeTea,'kg'],
+                                           ['S.TEA',r.sTeaMadeTea||0,'kg'],['G.OTD',r.gOtdMadeTea||0,'kg'],['G.CTC',r.gCtcMadeTea||0,'kg']] },
                                   { title:'Resources',
                                     rows: [['Firewood',r.totalFirewood,'st'],['CTC Hrs',r.ctcRunningHours,'h'],['Total Hrs',r.totalRunningHours,'h']] },
                                   { title:'Utilisation',
@@ -1749,20 +1775,27 @@ function Nav({ view, setView, onNewEntry }) {
    APP ROOT
 ═══════════════════════════════════════════════ */
 function App() {
-  const [records, setRecords] = useState(loadRecords);
-  const [view,    setView]    = useState('dashboard');
-  const [toast,   setToast]   = useState(null);
+  const [records,  setRecords]  = useState(loadRecords);
+  const [view,     setView]     = useState('dashboard');
+  const [toast,    setToast]    = useState(null);
+  const [editRec,  setEditRec]  = useState(null);
 
   useEffect(() => { saveRecords(records); }, [records]);
 
   function handleSave(rec) {
     setRecords(rs => {
       const idx = rs.findIndex(r => r.date === rec.date);
-      if (idx >= 0) { const u = [...rs]; u[idx] = rec; return u; }
+      if (idx >= 0) { const u = [...rs]; u[idx] = { ...u[idx], ...rec }; return u; }
       return [...rs, rec];
     });
+    setEditRec(null);
     setView('dashboard');
-    setToast('Record saved successfully!');
+    setToast(editRec ? 'Record updated successfully!' : 'Record saved successfully!');
+  }
+
+  function handleEdit(rec) {
+    setEditRec(rec);
+    setView('entry');
   }
 
   /* Dashboard data */
@@ -1791,7 +1824,7 @@ function App() {
   if (view === 'entry') {
     return (
       <>
-        <EntryForm onSave={handleSave} onCancel={() => setView('dashboard')}/>
+        <EntryForm onSave={handleSave} onCancel={() => { setEditRec(null); setView('dashboard'); }} initialRecord={editRec}/>
         {toast && <Toast msg={toast} onDone={() => setToast(null)}/>}
       </>
     );
@@ -1927,7 +1960,7 @@ function App() {
         </div>
       )}
 
-      {view === 'history' && <HistoryView records={records}/>}
+      {view === 'history' && <HistoryView records={records} onEdit={handleEdit}/>}
       {toast && <Toast msg={toast} onDone={() => setToast(null)}/>}
     </>
   );
