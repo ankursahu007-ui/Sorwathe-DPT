@@ -738,8 +738,14 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
 function QABox({ records }) {
   const [input, setInput]   = useState('');
   const [chat,  setChat]    = useState([{ role:'bot', text:'Ask me anything about your production records! Try one of the suggestions below or type your own question.' }]);
-  const endRef = React.useRef(null);
-  React.useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }); }, [chat]);
+  const endRef    = React.useRef(null);
+  const chatBoxRef = React.useRef(null);
+  // Scroll only the chat box — NOT the whole page
+  React.useEffect(() => {
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }
+  }, [chat]);
 
   const ML = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -1168,7 +1174,7 @@ function QABox({ records }) {
       </div>
 
       {/* Chat bubbles */}
-      <div style={{ maxHeight:220, overflowY:'auto', marginBottom:12,
+      <div ref={chatBoxRef} style={{ maxHeight:220, overflowY:'auto', marginBottom:12,
         background:'var(--cream-dark)', borderRadius:10, padding:'10px 12px',
         display:'flex', flexDirection:'column', gap:8 }}>
         {chat.map((msg, i) => (
