@@ -87,11 +87,11 @@
       gap: 16px;
       box-shadow: 0 2px 14px rgba(21,64,16,0.4);
       position: sticky; top: 0; z-index: 100;
-      min-height: 58px;
+      min-height: 74px;
     }
     .nav-brand {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 0;
+      display: flex; align-items: center; gap: 14px;
+      padding: 6px 0;
     }
     .nav-tabs {
       display: flex; align-items: stretch; gap: 2px;
@@ -1064,9 +1064,9 @@ function Nav({ view, setView, onNewEntry }) {
   return (
     <nav className="nav">
       <div className="nav-brand">
-        <SorwatheLogo size={38}/>
+        <SorwatheLogo size={58}/>
         <div>
-          <div className="serif" style={{ fontSize:19, fontWeight:600, color:'#fff', letterSpacing:'-0.01em', lineHeight:1.1 }}>
+          <div className="serif" style={{ fontSize:22, fontWeight:700, color:'#fff', letterSpacing:'-0.01em', lineHeight:1.1 }}>
             Sorwathe <span style={{ color:'var(--gold-bright)', opacity:0.9 }}>DPT</span>
           </div>
           <div style={{ fontSize:9.5, color:'rgba(255,255,255,0.38)', fontFamily:'Nunito', marginTop:1, letterSpacing:'0.05em' }}>
