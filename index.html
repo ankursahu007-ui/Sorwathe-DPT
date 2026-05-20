@@ -729,8 +729,8 @@ function QABox({ records }) {
     q = q.toLowerCase();
     if (/firewood|fw\b/.test(q))                          return 'fw';
     if (/recovery|rec(?:ov)?/.test(q))                    return 'rec';
-    if (/green.?leaf|\bgl\b/.test(q))                     return 'gl';
-    if (/made.?tea|\bmt\b/.test(q))                       return 'mt';
+    if (/green.?leaf|\bgl\b|raw.?material/.test(q))       return 'gl';
+    if (/made.?tea|\bmt\b|\bcrop\b/.test(q))              return 'mt';
     // G.OTD / G.CTC / S.TEA — check BEFORE generic green tea & ctc/otd
     if (/g\.?otd|green.?orth(?:odox)?/.test(q))           return 'gotd';
     if (/g\.?ctc|green.?ctc/.test(q))                     return 'gctc';
@@ -768,7 +768,7 @@ function QABox({ records }) {
 
   function mn(m) {
     return {
-      rec:'Recovery %', fw:'Firewood Ratio', gl:'Green Leaf', mt:'Made Tea',
+      rec:'Recovery %', fw:'Firewood Ratio', gl:'Green Leaf (Raw Material)', mt:'Made Tea / Crop',
       ctc:'CTC / Black Tea', otd:'OTD / Orthodox Tea', gt:'GT / Green Tea',
       gotd:'G.OTD / Green Orthodox', gctc:'G.CTC / Green CTC', stea:'S.TEA / Special Tea',
     }[m] || m;
