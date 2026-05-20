@@ -364,12 +364,12 @@ function computeKPIs(r) {
    GL/MT values are in kg (from factory Excel)
 ═══════════════════════════════════════════════ */
 /* xr(date, gl, ctc, otd, gt[=G.OTD+G.CTC+S.TEA], tmt, fw_steres) */
-function xr(date, gl, ctc, otd, gt, tmt, fw) {
+function xr(date, gl, ctc, otd, gt, tmt, fw, stea) {
   return {
     id: 'x-' + date, date,
     totalGreenLeaf: gl,
     ctcGreenLeaf: 0, otdGreenLeaf: 0, gtGreenLeaf: 0,
-    ctcMadeTea: ctc, otdMadeTea: otd, gtMadeTea: gt,
+    ctcMadeTea: ctc, otdMadeTea: otd, gtMadeTea: gt, sTeaMadeTea: stea || 0,
     totalMadeTea: tmt,
     totalFirewood: fw || 0,
     ctcRunningHours: 0, totalRunningHours: 0,
@@ -987,35 +987,37 @@ function QABox({ records }) {
       const yr = records; // all seed data is 2026
 
       /* ── helper: sum a metric field across a record set ── */
-      function sumField(recs, m) {
+      const sumField = (recs, m) => {
         if (m==='gl')  return recs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
         if (m==='ctc') return recs.reduce((s,r)=>s+(r.ctcMadeTea||0),0);
         if (m==='otd') return recs.reduce((s,r)=>s+(r.otdMadeTea||0),0);
         if (m==='gt')  return recs.reduce((s,r)=>s+(r.gtMadeTea||0),0);
+        if (m==='stea')return recs.reduce((s,r)=>s+(r.sTeaMadeTea||0),0);
         return          recs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-      }
+      };
+
+      /* helper: formatted value of metric m for a record set */
+      const mwVal = (recs, m) => {
+        if (m === 'rec') {
+          const gl = recs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
+          const mt = recs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+          const v  = pct(mt, gl);
+          return v!==null ? v.toFixed(2)+'%' : 'N/A';
+        }
+        if (m === 'fw') {
+          const fwR = recs.filter(r=>(r.totalFirewood||0)>0);
+          const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
+          const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
+          const v   = div(mt, fw);
+          return v!==null ? v.toFixed(0)+' kg/st' : 'N/A';
+        }
+        const tot = recs.reduce((s,r)=>s+(gv(r,m)||0),0);
+        return tot > 0 ? fmtNum(tot)+' kg' : '—';
+      };
 
       /* ── Month-wise breakdown ── */
       if (isMonthwise) {
         const rows = [];
-        /* helper: value of metric m for a record set (single formatted string) */
-        function mwVal(recs, m) {
-          if (m === 'rec') {
-            const gl = recs.reduce((s,r)=>s+(r.totalGreenLeaf||0),0);
-            const mt = recs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-            const v  = pct(mt, gl);
-            return v!==null ? v.toFixed(2)+'%' : 'N/A';
-          }
-          if (m === 'fw') {
-            const fwR = recs.filter(r=>(r.totalFirewood||0)>0);
-            const mt  = fwR.reduce((s,r)=>s+(r.totalMadeTea||0),0);
-            const fw  = fwR.reduce((s,r)=>s+(r.totalFirewood||0),0);
-            const v   = div(mt, fw);
-            return v!==null ? v.toFixed(0)+' kg/st' : 'N/A';
-          }
-          const tot = recs.reduce((s,r)=>s+(gv(r,m)||0),0);
-          return fmtNum(tot)+' kg';
-        }
 
         for (let mi=1; mi<=12; mi++) {
           const mrs = yr.filter(r => +r.date.slice(5,7) === mi);
@@ -1028,6 +1030,9 @@ function QABox({ records }) {
           }
         }
         if (!rows.length) return 'No 2026 records found.';
+        // If every row is all dashes (no data for this metric), say so clearly
+        const allEmpty = metrics.length === 1 && rows.every(r => r.includes(': —'));
+        if (allEmpty) return `No ${mn(metric)} data found in records.\nMake sure to fill in the ${mn(metric)} field when entering production data.`;
         const lbl = metrics.length > 1 ? metrics.map(mn).join(' & ') : (metric ? mn(metric) : 'Made Tea');
         /* year-end summary */
         let yrLine = '';
@@ -1390,7 +1395,7 @@ function EntryForm({ onSave, onCancel }) {
   const [f, setF] = useState({
     date: today,
     ctcGreenLeaf:'', otdGreenLeaf:'', gtGreenLeaf:'',
-    ctcMadeTea:'', otdMadeTea:'', gtMadeTea:'',
+    ctcMadeTea:'', otdMadeTea:'', gtMadeTea:'', sTeaMadeTea:'',
     totalFirewood:'', ctcRunningHours:'', totalRunningHours:'',
     fileName:'',
   });
@@ -1398,7 +1403,7 @@ function EntryForm({ onSave, onCancel }) {
 
   /* Auto-computed totals */
   const totalGL = n(f.ctcGreenLeaf) + n(f.otdGreenLeaf) + n(f.gtGreenLeaf);
-  const totalMT = n(f.ctcMadeTea)   + n(f.otdMadeTea)   + n(f.gtMadeTea);
+  const totalMT = n(f.ctcMadeTea) + n(f.otdMadeTea) + n(f.gtMadeTea) + n(f.sTeaMadeTea);
   const liveRec = totalGL > 0 && totalMT > 0 ? (totalMT / totalGL * 100) : null;
   const liveS   = liveRec !== null ? kpiStatus(liveRec) : null;
 
@@ -1418,6 +1423,7 @@ function EntryForm({ onSave, onCancel }) {
       ctcMadeTea:       n(f.ctcMadeTea),
       otdMadeTea:       n(f.otdMadeTea),
       gtMadeTea:        n(f.gtMadeTea),
+      sTeaMadeTea:      n(f.sTeaMadeTea),
       totalMadeTea:     totalMT,
       totalFirewood:    n(f.totalFirewood),
       ctcRunningHours:  n(f.ctcRunningHours),
@@ -1493,7 +1499,7 @@ function EntryForm({ onSave, onCancel }) {
               {totalGL > 0 ? fmtNum(totalGL) + ' kg' : '—'}
             </span>
             <span style={{ fontSize:11, color:'var(--bark-light)', fontFamily:'Nunito' }}>
-              (auto-sum of CTC + OTD + GT)
+              (auto-sum of CTC + OTD + GT + S.TEA)
             </span>
           </div>
         </Section>
@@ -1501,9 +1507,12 @@ function EntryForm({ onSave, onCancel }) {
         {/* B — Made Tea */}
         <Section letter="B" title="Made Tea">
           <div className="grid-3f">
-            <F label="CTC Made Tea (kg)" name="ctcMadeTea" value={f.ctcMadeTea} onChange={ch}/>
-            <F label="OTD Made Tea (kg)" name="otdMadeTea" value={f.otdMadeTea} onChange={ch}/>
-            <F label="GT Made Tea (kg)"  name="gtMadeTea"  value={f.gtMadeTea}  onChange={ch}/>
+            <F label="CTC Made Tea (kg)"   name="ctcMadeTea"  value={f.ctcMadeTea}  onChange={ch}/>
+            <F label="OTD Made Tea (kg)"   name="otdMadeTea"  value={f.otdMadeTea}  onChange={ch}/>
+            <F label="GT Made Tea (kg)"    name="gtMadeTea"   value={f.gtMadeTea}   onChange={ch}/>
+          </div>
+          <div className="grid-3f" style={{ marginTop:10 }}>
+            <F label="S.TEA Made Tea (kg)" name="sTeaMadeTea" value={f.sTeaMadeTea} onChange={ch}/>
           </div>
           {/* Computed total */}
           <div style={{ background:'var(--gold-pale)', border:'1.5px solid rgba(200,150,10,0.25)',
@@ -1514,7 +1523,7 @@ function EntryForm({ onSave, onCancel }) {
               {totalMT > 0 ? fmtNum(totalMT) + ' kg' : '—'}
             </span>
             <span style={{ fontSize:11, color:'var(--bark-light)', fontFamily:'Nunito' }}>
-              (auto-sum of CTC + OTD + GT)
+              (auto-sum of CTC + OTD + GT + S.TEA)
             </span>
           </div>
         </Section>
