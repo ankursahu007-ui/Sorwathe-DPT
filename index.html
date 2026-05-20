@@ -476,40 +476,93 @@ function TeaLeaf({ size = 22, color = '#fff' }) {
 /* ═══════════════════════════════════════════════
    BAR CHART
 ═══════════════════════════════════════════════ */
-function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', decimals = 1 }) {
+function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', decimals = 1, yMin: yMinProp, yStep }) {
   const [from, setFrom] = useState('');
   const [to,   setTo]   = useState('');
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
-  let filtered = sorted;
-  if (from) filtered = filtered.filter(r => r.date >= from);
-  if (to)   filtered = filtered.filter(r => r.date <= to);
-  if (!from && !to) filtered = filtered.slice(-30);
 
-  const data = filtered
-    .map(r => ({ date: r.date, val: getValue(r) }))
-    .filter(d => d.val !== null && d.val > 0);
+  // Build lookup: date → record
+  const recMap = {};
+  records.forEach(r => { recMap[r.date] = r; });
 
+  // Determine date range window
+  const allSorted = [...records].map(r => r.date).sort();
+  const today = new Date().toISOString().slice(0, 10);
+  let startDate, endDate;
+  if (from || to) {
+    startDate = from || (allSorted[0] ?? today);
+    endDate   = to   || today;
+  } else {
+    // default: last 30 calendar days
+    endDate = today;
+    const d = new Date(today);
+    d.setDate(d.getDate() - 29);
+    startDate = d.toISOString().slice(0, 10);
+  }
+
+  // Generate every calendar date in [startDate, endDate]
+  const allDates = [];
+  {
+    const cur = new Date(startDate);
+    const end = new Date(endDate);
+    while (cur <= end) {
+      allDates.push(cur.toISOString().slice(0, 10));
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
+  // Map every date → value (0 if no record)
+  const data = allDates.map(date => {
+    const r = recMap[date];
+    const v = r ? (getValue(r) ?? 0) : 0;
+    return { date, val: isNaN(v) ? 0 : v };
+  });
+
+  const nonZero = data.filter(d => d.val > 0);
+  const hasData = nonZero.length > 0;
+
+  // ── Y-axis range ──────────────────────────────
+  const dataMin = hasData ? Math.min(...nonZero.map(d => d.val)) : 0;
+  const dataMax = hasData ? Math.max(...nonZero.map(d => d.val)) : 100;
+
+  let yMin, yMax, tickVals;
+  if (yStep !== undefined) {
+    // Snap yMin to one step below the data minimum
+    yMin = yMinProp !== undefined ? yMinProp : Math.floor((dataMin - yStep) / yStep) * yStep;
+    yMax = Math.ceil((dataMax * 1.02) / yStep) * yStep;
+    tickVals = [];
+    for (let v = yMin; v <= yMax + 1e-9; v = parseFloat((v + yStep).toFixed(10))) {
+      tickVals.push(parseFloat(v.toFixed(10)));
+    }
+  } else {
+    yMin = 0;
+    yMax = dataMax * 1.1 || 100;
+    tickVals = [0, yMax / 2, yMax];
+  }
+  const yRange = yMax - yMin;
+
+  // ── SVG dimensions ────────────────────────────
   const W = 420, H = 260;
-  const pl = 52, pr = 20, pt = 16, pb = 52;
+  const pl = 56, pr = 22, pt = 16, pb = 52;
   const cW = W - pl - pr, cH = H - pt - pb;
 
-  const hasData = data.length > 0;
-  const maxV = hasData ? Math.max(...data.map(d => d.val)) * 1.1 : 100;
   const n = data.length;
   const slotW = n > 0 ? cW / n : cW;
-  const barW = Math.max(4, Math.min(28, slotW * 0.74));
+  const barW  = Math.max(2, Math.min(26, slotW * 0.72));
 
-  const cx = i => pl + i * slotW + (slotW - barW) / 2;
-  const bh = val => (val / maxV) * cH;
-  const by = val => pt + cH - bh(val);
+  const cx  = i   => pl + i * slotW + (slotW - barW) / 2;
+  const vy  = v   => pt + cH - Math.max(0, Math.min(1, (v - yMin) / yRange)) * cH;
+  const bh  = val => val <= 0 ? 3 : Math.max(0, (val - yMin) / yRange) * cH;
+  const by  = val => val <= 0 ? pt + cH - 3 : vy(val);
 
-  const statusColors = { green:'#1d5518', amber:'#c97a10', red:'#b83228', mist:'#ccc' };
-  const getCol = val => barColor || statusColors[kpiStatus(val)] || '#ccc';
+  const statusColors = { green:'#1d5518', amber:'#c97a10', red:'#b83228' };
+  const getCol = val => val <= 0 ? '#ddd6c8' : (barColor || statusColors[kpiStatus(val)] || '#bbb');
 
-  const nth = Math.max(1, Math.ceil(n / 7));
-  const tickVals = [0, maxV / 2, maxV];
+  // Show every nth label so x-axis isn't overcrowded (max ~8 labels)
+  const nth = Math.max(1, Math.ceil(n / 8));
+
+  const recCount = nonZero.length;
 
   return (
     <div>
@@ -527,7 +580,7 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
               cursor:'pointer', fontFamily:'Nunito', fontWeight:700 }}>✕</button>
         )}
         <span style={{ marginLeft:'auto', fontSize:10, color:'#bbb', fontFamily:'Nunito', whiteSpace:'nowrap' }}>
-          {!from && !to ? 'Last 30 days' : `${data.length} records`}
+          {!from && !to ? 'Last 30 days' : `${recCount} record${recCount !== 1 ? 's' : ''}`}
         </span>
       </div>
 
@@ -535,43 +588,54 @@ function BarChart({ records, getValue, barColor, thresholdLine, unit = '%', deci
         ? <div style={{ textAlign:'center', lineHeight:'200px', color:'#ccc', fontFamily:'Nunito', fontSize:13 }}>
             No data in selected range
           </div>
-        : <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:260, overflow:'visible', marginBottom:28 }} preserveAspectRatio="xMidYMid meet" overflow="visible">
+        : <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:260, overflow:'visible', marginBottom:28 }}
+            preserveAspectRatio="xMidYMid meet" overflow="visible">
+
+            {/* ── Y gridlines + tick labels ── */}
             {tickVals.map((v, i) => {
-              const ty = pt + cH - (v / maxV) * cH;
+              const ty = vy(v);
+              const isBase = i === 0;
               return (
                 <g key={i}>
                   <line x1={pl} y1={ty} x2={W-pr} y2={ty}
-                    stroke="#e5e0d0" strokeWidth="1" strokeDasharray={i === 0 ? '0' : '4,3'}/>
-                  <text x={pl-6} y={ty+4} textAnchor="end" fontSize="13" fill="#888"
+                    stroke={isBase ? '#c8c0b0' : '#e8e2d4'} strokeWidth={isBase ? 1 : 0.8}
+                    strokeDasharray={isBase ? '0' : '4,3'}/>
+                  <text x={pl-5} y={ty+4} textAnchor="end" fontSize="12" fill="#888"
                     fontFamily="DM Mono,monospace">
-                    {v.toFixed(decimals)}
+                    {Number.isInteger(v) ? v : v.toFixed(decimals)}
                   </text>
                 </g>
               );
             })}
-            {thresholdLine != null && thresholdLine <= maxV && (
+
+            {/* ── Threshold line ── */}
+            {thresholdLine != null && thresholdLine >= yMin && thresholdLine <= yMax && (
               <>
-                <line x1={pl} y1={pt+cH-(thresholdLine/maxV)*cH}
-                  x2={W-pr}  y2={pt+cH-(thresholdLine/maxV)*cH}
-                  stroke="#C8960A" strokeWidth="1.5" strokeDasharray="5,4" opacity="0.7"/>
-                <text x={W-pr+4} y={pt+cH-(thresholdLine/maxV)*cH+4}
-                  fontSize="12" fill="#C8960A" opacity="0.85" fontFamily="DM Mono,monospace">
+                <line x1={pl} y1={vy(thresholdLine)} x2={W-pr} y2={vy(thresholdLine)}
+                  stroke="#C8960A" strokeWidth="1.5" strokeDasharray="5,4" opacity="0.75"/>
+                <text x={W-pr+4} y={vy(thresholdLine)+4}
+                  fontSize="12" fill="#C8960A" opacity="0.9" fontFamily="DM Mono,monospace">
                   {thresholdLine}{unit}
                 </text>
               </>
             )}
+
+            {/* ── Bars ── */}
             {data.map((d, i) => (
               <rect key={i}
                 x={cx(i)} y={by(d.val)} width={barW} height={bh(d.val)}
-                fill={getCol(d.val)} rx="2" opacity="0.85"/>
+                fill={getCol(d.val)} rx="1" opacity={d.val > 0 ? 0.88 : 0.55}/>
             ))}
+
+            {/* ── X-axis date labels ── */}
             {data.map((d, i) => {
               if (i % nth !== 0) return null;
               const [, m, day] = d.date.split('-');
               const lbl = `${parseInt(day)} ${MONTHS[+m-1]}`;
               const lx = cx(i) + barW / 2;
               return (
-                <text key={i} x={lx} y={H-4} textAnchor="end" fontSize="12" fill="#aaa"
+                <text key={i} x={lx} y={H-4} textAnchor="end" fontSize="12"
+                  fill={d.val > 0 ? '#999' : '#ccc'}
                   fontFamily="DM Mono,monospace"
                   transform={`rotate(-38, ${lx}, ${H-4})`}>
                   {lbl}
@@ -1200,7 +1264,8 @@ function App() {
               <BarChart records={records}
                 getValue={r => pct(r.totalMadeTea, r.totalGreenLeaf)}
                 thresholdLine={22}
-                unit="%" decimals={1}/>
+                unit="%" decimals={1}
+                yMin={14} yStep={1}/>
             </div>
             <div className="card fade-up" style={{ padding:'20px 22px', animationDelay:'0.40s' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
@@ -1212,7 +1277,8 @@ function App() {
               <BarChart records={records}
                 getValue={r => div(r.totalMadeTea, r.totalFirewood)}
                 barColor="#C8960A"
-                unit=" kg/st" decimals={0}/>
+                unit=" kg/st" decimals={0}
+                yMin={260} yStep={20}/>
             </div>
           </div>
 
