@@ -1975,11 +1975,14 @@ function QABox({ records }) {
     }
 
     // ── Monthly queries ───────────────────────────
-    if (monNum) {
-      const mrs = records.filter(r => +r.date.slice(5,7)===monNum);
-      const mLbl = ML[monNum-1];
+    if (monNum && !isMonthwise) {
+      // Filter by month; also by year when one is specified in the query
+      const mrs  = records.filter(r =>
+        +r.date.slice(5,7) === monNum && (!qYear || r.date.startsWith(String(qYear)))
+      );
+      const mLbl = ML[monNum-1] + (qYear ? ` ${qYear}` : '');
       if (!mrs.length) return `No records found for ${mLbl}.`;
-      if (isCount) return `${mrs.length} production days recorded in ${mLbl} 2026.`;
+      if (isCount) return `${mrs.length} production days recorded in ${mLbl}.`;
 
       // ── Multi-metric monthly response ──
       if (metrics.length > 1 && !isBest && !isLow) {
@@ -2006,7 +2009,7 @@ function QABox({ records }) {
           const tot = xs.reduce((s,x)=>s+x.v,0);
           return `• ${mn(m)}: ${fv(tot,m)}`;
         });
-        return `${mLbl} 2026 — ${mrs.length} days:\n${lines.join('\n')}`;
+        return `${mLbl} — ${mrs.length} days:\n${lines.join('\n')}`;
       }
 
       if (isTotal && metric==='gl') {
@@ -2081,7 +2084,7 @@ function QABox({ records }) {
       const fwMT   = fwRecs.reduce((s,r)=>s+(r.totalMadeTea||0),0);
       const recV   = pct(mtTot, glTot);
       const fwV    = div(fwMT,  fwTot);
-      return `${mLbl} 2026 summary (${mrs.length} days):\n• Green Leaf: ${fmtNum(glTot)} kg\n• Made Tea: ${fmtNum(mtTot)} kg\n• Recovery: ${recV!==null?recV.toFixed(2)+'%':'N/A'}\n• Firewood Ratio: ${fwV!==null?fwV.toFixed(0)+' kg/st':'N/A'}`;
+      return `${mLbl} summary (${mrs.length} days):\n• Green Leaf: ${fmtNum(glTot)} kg\n• Made Tea: ${fmtNum(mtTot)} kg\n• Recovery: ${recV!==null?recV.toFixed(2)+'%':'N/A'}\n• Firewood Ratio: ${fwV!==null?fwV.toFixed(0)+' kg/st':'N/A'}`;
     }
 
     // ── Year-level and month-wise queries ────────
